@@ -9,22 +9,15 @@
 #if __APPLE__
     // For special molten-vk extension.
     #define VK_USE_PLATFORM_MACOS_MVK
-
-    // Native-access to macOS cocoa window.
-    #define GLFW_EXPOSE_NATIVE_COCOA
-    
-    // Objective-C wrapper to bind a KHR surface to native macOS window. 
-    #include <MetalUtility/MetalUtility.h>
 #endif
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-
-// In case of macOS, will include the cocoa native implementation.
-#include <GLFW/glfw3native.h>
+#include <vulkan/vulkan.h>
 
 #include <vector>
 #include <functional>
+
+// Forward-declare GLFW
+struct GLFWwindow;
 
 namespace Wrappers
 {

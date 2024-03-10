@@ -1,9 +1,22 @@
 #include "RenderInstance.h"
 
+using namespace Wrappers;
+
 #include <vector>
 #include <iostream>
 
-using namespace Wrappers;
+#if __APPLE__
+    // Native-access to macOS cocoa window.
+    #define GLFW_EXPOSE_NATIVE_COCOA
+    
+    // Objective-C wrapper to bind a KHR surface to native macOS window. 
+    #include "MetalUtility/MetalUtility.h"
+#endif
+
+#include <GLFW/glfw3.h>
+
+// In case of macOS, will include the cocoa native implementation.
+#include <GLFW/glfw3native.h>
 
 struct SwapChainSupportDetails
 {
