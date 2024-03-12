@@ -6,6 +6,10 @@
     for simple demo-style applications that draw to one non-resizing triple-buffered viewport. 
 */
 
+#include <map>
+#include <vector>
+#include <functional>
+
 #if __APPLE__
     // For special molten-vk extension.
     #define VK_USE_PLATFORM_MACOS_MVK
@@ -13,14 +17,24 @@
 
 #include <vulkan/vulkan.h>
 
-#include <vector>
-#include <functional>
-
 // Forward-declare GLFW
 struct GLFWwindow;
 
+// Catch-all for image, buffer, pipeline resources. 
+class GraphicsResource;
+
 namespace Wrappers
 {
+    struct InitializeContext
+    {
+        VkFormat    backBufferFormat;
+        VkRect2D    backBufferScissor;
+        VkViewport  backBufferViewport;
+        
+        // User-defined map of named resources. 
+        std::map<std::string, std::unique_ptr<GraphicsResource>>& resources;
+    };
+
     struct RenderContext
     {
         // Contextual info
@@ -28,6 +42,9 @@ namespace Wrappers
         VkImageView     backBufferView;
         VkRect2D        backBufferScissor;
         VkViewport      backBufferViewport;
+
+        // Resources
+        const std::map<std::string, std::unique_ptr<GraphicsResource>>& resources;
 
         // Unfortunately need to pass the function pointers due to extension
         PFN_vkCmdBeginRenderingKHR renderBegin;
@@ -55,7 +72,7 @@ namespace Wrappers
         ~RenderInstance();
 
         // Invoke the render-loop with a callback for filling out the current command buffer. 
-        int Execute(std::function<void(RenderContext)>);
+        int Execute(std::function<void(InitializeContext)>, std::function<void(RenderContext)>);
 
         void WaitForIdle() { vkDeviceWaitIdle(m_VKDevice); }
 
@@ -84,8 +101,13 @@ namespace Wrappers
         VkQueue m_VKGraphicsQueue;
         VkQueue m_VKPresentQueue;
 
+        VkSurfaceFormatKHR m_VKBackbufferFormat;
+        VkExtent2D         m_VkBackbufferExtent;
+
 	    PFN_vkCmdBeginRenderingKHR m_VKCmdBeginRenderingKHR;
 	    PFN_vkCmdEndRenderingKHR   m_VKCmdEndRenderingKHR;
+
+        std::map<std::string, std::unique_ptr<GraphicsResource>> m_Resources;
 
         uint32_t m_FrameIndex;
     };

@@ -1,4 +1,5 @@
 #include "RenderInstance.h"
+#include "GraphicsResource.h"
 
 using namespace Wrappers;
 
@@ -282,6 +283,9 @@ RenderInstance::RenderInstance(int width, int height)
     if (vkCreateDevice(m_VKPhysicalDevice, &deviceCreateInfo, nullptr, &m_VKDevice) != VK_SUCCESS) 
         throw std::runtime_error("failed to create logical device.");
 
+    // Set the device for simpler resource creation.
+    GraphicsResource::s_VKDevice = &m_VKDevice;
+
     // Acquire queues
     vkGetDeviceQueue(m_VKDevice, m_QueueFamilyIndexGraphics, 0, &m_VKGraphicsQueue);
     vkGetDeviceQueue(m_VKDevice, m_QueueFamilyIndexPresent,  0, &m_VKPresentQueue);
@@ -296,8 +300,8 @@ RenderInstance::RenderInstance(int width, int height)
     SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(m_VKPhysicalDevice, m_VKSurface);
 
     // Store the format and extent
-    VkSurfaceFormatKHR format = ChooseSwapSurfaceFormat(swapChainSupport);
-    VkExtent2D         extent = ChooseSwapExtent(&swapChainSupport.capabilities, NULL);
+    m_VKBackbufferFormat = ChooseSwapSurfaceFormat(swapChainSupport);
+    m_VkBackbufferExtent = ChooseSwapExtent(&swapChainSupport.capabilities, NULL);
 
     uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
 
@@ -309,7 +313,7 @@ RenderInstance::RenderInstance(int width, int height)
         .sType                 = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
         .surface               = m_VKSurface,
         .minImageCount         = imageCount,
-        .imageExtent           = extent,
+        .imageExtent           = m_VkBackbufferExtent,
         .imageArrayLayers      = 1,
         .imageUsage            = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
         .preTransform          = swapChainSupport.capabilities.currentTransform,
@@ -317,8 +321,8 @@ RenderInstance::RenderInstance(int width, int height)
         .presentMode           = ChooseSwapPresentMode(swapChainSupport),
         .clipped               = VK_TRUE,
         .oldSwapchain          = VK_NULL_HANDLE,
-        .imageFormat           = format.format,
-        .imageColorSpace       = format.colorSpace,
+        .imageFormat           = m_VKBackbufferFormat.format,
+        .imageColorSpace       = m_VKBackbufferFormat.colorSpace,
         .imageSharingMode      = VK_SHARING_MODE_EXCLUSIVE,
         .queueFamilyIndexCount = 0,
         .pQueueFamilyIndices   = NULL
@@ -360,7 +364,7 @@ RenderInstance::RenderInstance(int width, int height)
             .sType        = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
             .image        = m_Frames[i].backBuffer,
             .viewType     = VK_IMAGE_VIEW_TYPE_2D,
-            .format       = format.format,
+            .format       = m_VKBackbufferFormat.format,
 
             .components.r = VK_COMPONENT_SWIZZLE_IDENTITY,
             .components.g = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -412,8 +416,8 @@ RenderInstance::RenderInstance(int width, int height)
     { 
         .x        = 0.0f,
         .y        = 0.0f,
-        .width    = (float) extent.width,
-        .height   = (float) extent.height,
+        .width    = (float) m_VkBackbufferExtent.width,
+        .height   = (float) m_VkBackbufferExtent.height,
         .minDepth = 0.0f,
         .maxDepth = 1.0f
     };
@@ -422,13 +426,16 @@ RenderInstance::RenderInstance(int width, int height)
     {
         .offset.x = 0,
         .offset.y = 0,
-        .extent   = extent
+        .extent   = m_VkBackbufferExtent
     };
 }
 
 RenderInstance::~RenderInstance()
 {
     WaitForIdle();
+
+    for (auto& resource : m_Resources)
+        resource.second->Release(m_VKDevice);
 
     vkDestroyCommandPool(m_VKDevice, m_VKCommandPool, nullptr);
 
@@ -449,8 +456,18 @@ RenderInstance::~RenderInstance()
     glfwTerminate();
 }
 
-int RenderInstance::Execute(std::function<void(RenderContext)> renderCallback)
+int RenderInstance::Execute(std::function<void(InitializeContext)> initializeCallback, std::function<void(RenderContext)> renderCallback)
 {
+    // Invoke the user initialization. 
+    InitializeContext initializeContext
+    {
+        .backBufferViewport = m_VKViewport,
+        .backBufferScissor  = m_VKScissor,
+        .backBufferFormat   = m_VKBackbufferFormat.format,
+        .resources = m_Resources
+    };
+    initializeCallback(initializeContext);
+
     VkCommandBufferBeginInfo commandBufferBeginInfo
     {
         .sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -462,7 +479,7 @@ int RenderInstance::Execute(std::function<void(RenderContext)> renderCallback)
     {
         glfwPollEvents();
 
-        // Grab the current frame primtives.
+        // Grab the current frame primitives.
         auto* frame = &m_Frames[m_FrameIndex];
 
         // Pause thread until the fence is signaled.
@@ -509,17 +526,18 @@ int RenderInstance::Execute(std::function<void(RenderContext)> renderCallback)
             );
 
             // Invoke user render callback to write commands. 
-            RenderContext context
+            RenderContext renderContext
             {
                 .commandBuffer      = frame->commandBuffer,
                 .backBufferView     = frame->backBufferView,
                 .backBufferScissor  = m_VKScissor,
                 .backBufferViewport = m_VKViewport,
                 .renderBegin        = m_VKCmdBeginRenderingKHR,
-                .renderEnd          = m_VKCmdEndRenderingKHR
+                .renderEnd          = m_VKCmdEndRenderingKHR,
+                .resources          = m_Resources
             };
 
-            renderCallback(context);
+            renderCallback(renderContext);
 
             // Back-buffer barrier
 
@@ -555,15 +573,15 @@ int RenderInstance::Execute(std::function<void(RenderContext)> renderCallback)
 
             vkCmdPipelineBarrier(
                 frame->commandBuffer,
-                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,  // srcStageMask
-                VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, // dstStageMask
+                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 
                 0,
                 0,
                 nullptr,
                 0,
                 nullptr,
-                1, // imageMemoryBarrierCount
-                &image_memory_barrier // pImageMemoryBarriers
+                1, 
+                &image_memory_barrier 
             );
         }
         vkEndCommandBuffer(frame->commandBuffer);

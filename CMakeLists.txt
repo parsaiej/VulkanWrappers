@@ -16,7 +16,7 @@ endif ()
 # Library
 # -----------------------
 
-add_library(Wrappers SHARED "RenderInstance.cpp" "Pipeline.cpp")
+add_library(Wrappers SHARED "RenderInstance.cpp" "GraphicsResource.cpp")
 
 # Include
 # -----------------------
