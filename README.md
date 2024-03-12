@@ -64,12 +64,13 @@ void RenderFunc(RenderContext context)
         .pStencilAttachment   = nullptr
     };
 
-    vkCmdBeginRendering(context.commandBuffer, &renderInfo);
-    {
-        context.resources.at(PIPELINE_TRIANGLE)->Bind(cmd);
-        vkCmdDraw(context.commandBuffer, 3, 1, 0, 0);
-    }
-    vkCmdEndRendering(context.commandBuffer);
+    vkCmdBeginRendering(cmd, &renderInfo);
+
+    // Issue native Vulkan commands
+    context.resources.at(PIPELINE_TRIANGLE)->Bind(cmd);
+    vkCmdDraw(cmd, 3, 1, 0, 0);
+
+    vkCmdEndRendering(cmd);
 }
 
 // Entry
