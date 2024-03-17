@@ -95,6 +95,11 @@ void Pipeline::Release(VkDevice device)
     SAFE_RELEASE(vkDestroyPipeline,       m_VKPipeline);
 }
 
+void Pipeline::UpdateLayout(VkCommandBuffer cmd, void* constants, uint32_t constantsSize)
+{
+    vkCmdPushConstants(cmd, m_VKPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, constantsSize, constants);
+}
+
 void Pipeline::Commit()
 {
     // Destroy any pre-existing objects (not shader modules).
@@ -129,7 +134,9 @@ void Pipeline::Commit()
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo =
     {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
+        .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .pushConstantRangeCount = (uint32_t)m_PushConstants.size(),
+        .pPushConstantRanges    = m_PushConstants.data()
     };
 
     if (vkCreatePipelineLayout(*s_VKDevice, &pipelineLayoutInfo, nullptr, &m_VKPipelineLayout) != VK_SUCCESS)
@@ -166,7 +173,7 @@ void Pipeline::Commit()
         {
             .sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
             .topology               = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-            .primitiveRestartEnable = VK_FALSE
+            .primitiveRestartEnable = VK_FALSE,
         };
 
         // Rasterizer
@@ -178,7 +185,7 @@ void Pipeline::Commit()
             .rasterizerDiscardEnable = VK_FALSE,
             .polygonMode             = VK_POLYGON_MODE_FILL,
             .lineWidth               = 1.0f,
-            .cullMode                = VK_CULL_MODE_BACK_BIT,
+            .cullMode                = VK_CULL_MODE_NONE,
             .frontFace               = VK_FRONT_FACE_CLOCKWISE,
             .depthBiasEnable         = VK_FALSE,
             .depthBiasConstantFactor = 0.0f,
@@ -225,16 +232,6 @@ void Pipeline::Commit()
             .viewportCount = 1,
             .pViewports    = &m_VKViewport
         };
-
-        // Layout
-
-        VkPipelineLayoutCreateInfo pipelineLayoutInfo =
-        {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
-        };
-
-        if (vkCreatePipelineLayout(*s_VKDevice, &pipelineLayoutInfo, nullptr, &m_VKPipelineLayout) != VK_SUCCESS)
-            throw std::runtime_error("failed to create pipeline layout.");
 
         VkPipelineRenderingCreateInfoKHR pipelineRenderingCreateInfo = 
         {

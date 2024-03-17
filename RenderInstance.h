@@ -44,7 +44,7 @@ namespace Wrappers
         VkViewport      backBufferViewport;
 
         // Resources
-        const std::map<std::string, std::unique_ptr<GraphicsResource>>& resources;
+        std::map<std::string, std::unique_ptr<GraphicsResource>>& resources;
 
         // Unfortunately need to pass the function pointers due to extension
         PFN_vkCmdBeginRenderingKHR renderBegin;

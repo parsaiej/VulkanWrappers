@@ -30,6 +30,8 @@ namespace Wrappers
         // Re-create a pipeline based on the currently configured state of the object. 
         void Commit();
 
+        void UpdateLayout(VkCommandBuffer cmd, void* constants, uint32_t constantsSize);
+
         void Bind(VkCommandBuffer command) override
         {
             auto bindPoint = m_IsCompute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -41,8 +43,10 @@ namespace Wrappers
         void SetShaderProgram(const char* filePathVertex, const char* filePathFragment);
         void SetShaderProgram(const char* filePathCompute);
 
-        void SetColorTargetFormats(const std::vector<VkFormat> colorRTs) { m_ColorRTFormats = colorRTs; };
-        void SetDepthTargetFormats(const std::vector<VkFormat> depthRTs) { m_DepthRTFormats = depthRTs; };
+        void SetColorTargetFormats(const std::vector<VkFormat>& colorRTs) { m_ColorRTFormats = colorRTs; };
+        void SetDepthTargetFormats(const std::vector<VkFormat>& depthRTs) { m_DepthRTFormats = depthRTs; };
+
+        void SetPushConstants(const std::vector<VkPushConstantRange>& pushConstantRanges) { m_PushConstants = pushConstantRanges; };
 
         void SetScissor(VkRect2D scissor)     { m_VKScissor = scissor;   }
         void SetViewport(VkViewport viewport) { m_VKViewport = viewport; }
@@ -57,6 +61,8 @@ namespace Wrappers
 
         std::vector<VkFormat> m_ColorRTFormats;
         std::vector<VkFormat> m_DepthRTFormats;
+
+        std::vector<VkPushConstantRange> m_PushConstants;
 
         VkViewport m_VKViewport;
         VkRect2D   m_VKScissor;
