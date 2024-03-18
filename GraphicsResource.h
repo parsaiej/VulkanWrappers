@@ -3,6 +3,9 @@
 
 #include <vulkan/vulkan.h>
 
+#include "VmaUsage.h"
+#include "RenderInstance.h"
+
 #include <vector>
 
 class GraphicsResource
@@ -16,7 +19,8 @@ public:
     // Bind the VK primitive to the graphics pipeline. 
     virtual void Bind(VkCommandBuffer command) {};
 
-    static VkDevice* s_VKDevice;
+    // Keep handle to render instance for simpler resource creation. 
+    static Wrappers::RenderInstance* s_RenderInstance;
 };
 
 namespace Wrappers
@@ -48,6 +52,9 @@ namespace Wrappers
 
         void SetPushConstants(const std::vector<VkPushConstantRange>& pushConstantRanges) { m_PushConstants = pushConstantRanges; };
 
+        void SetVertexInputBindings(const std::vector<VkVertexInputBindingDescription>& inputBindings)       { m_VKVertexBindings   = inputBindings;   };
+        void SetVertexInputAttributes(const std::vector<VkVertexInputAttributeDescription>& inputAttributes) { m_VKVertexAttributes = inputAttributes; };
+
         void SetScissor(VkRect2D scissor)     { m_VKScissor = scissor;   }
         void SetViewport(VkViewport viewport) { m_VKViewport = viewport; }
 
@@ -64,6 +71,9 @@ namespace Wrappers
 
         std::vector<VkPushConstantRange> m_PushConstants;
 
+        std::vector<VkVertexInputBindingDescription>   m_VKVertexBindings;
+        std::vector<VkVertexInputAttributeDescription> m_VKVertexAttributes;
+
         VkViewport m_VKViewport;
         VkRect2D   m_VKScissor;
 
@@ -74,10 +84,16 @@ namespace Wrappers
     {
     public:
 
-        void Release(VkDevice device) override { vkDestroyBuffer(device, m_Primitive, nullptr); }
+        Buffer(VkDeviceSize size, VkBufferUsageFlags bufferFlags, VkMemoryPropertyFlags memoryFlags, VmaAllocationCreateFlags allocFlags = 0x0);
+
+        VkBuffer Get() { return m_VKBuffer; }
+
+        void SetData(void* data, uint32_t size);
+        void Release(VkDevice device) override;
 
     private:
-        VkBuffer m_Primitive;
+        VkBuffer       m_VKBuffer;
+        VmaAllocation  m_VMAAllocation;
     };
 
     class Image : public GraphicsResource

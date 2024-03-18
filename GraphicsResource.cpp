@@ -7,11 +7,11 @@
 
 using namespace Wrappers;
 
-VkDevice* GraphicsResource::s_VKDevice = nullptr;
+RenderInstance* GraphicsResource::s_RenderInstance = nullptr;
 
 #define SAFE_RELEASE(func, value) \
     if (value != VK_NULL_HANDLE)  \
-        func(*s_VKDevice, value, nullptr);
+        func(s_RenderInstance->GetDevice(), value, nullptr);
 
 // NOTE: This implementation was re-used from an old C project.
 void TryCreateShaderModule(VkDevice device, VkShaderModule* module, const char* filePath)
@@ -74,8 +74,8 @@ void Pipeline::SetShaderProgram(const char* filePathVertex, const char* filePath
     // Most recent caller defines whether to create a VkComputePipeline or not.
     m_IsCompute = false;
 
-    TryCreateShaderModule(*s_VKDevice, &m_VKShaderVS, filePathVertex);
-    TryCreateShaderModule(*s_VKDevice, &m_VKShaderFS, filePathFragment);
+    TryCreateShaderModule(s_RenderInstance->GetDevice(), &m_VKShaderVS, filePathVertex);
+    TryCreateShaderModule(s_RenderInstance->GetDevice(), &m_VKShaderFS, filePathFragment);
 }
 
 void Pipeline::SetShaderProgram(const char* filePathCompute)
@@ -83,7 +83,7 @@ void Pipeline::SetShaderProgram(const char* filePathCompute)
     // Most recent caller defines whether to create a VkComputePipeline or not.
     m_IsCompute = true;
 
-    TryCreateShaderModule(*s_VKDevice, &m_VKShaderCS, filePathCompute);
+    TryCreateShaderModule(s_RenderInstance->GetDevice(), &m_VKShaderCS, filePathCompute);
 }
 
 void Pipeline::Release(VkDevice device)
@@ -139,7 +139,7 @@ void Pipeline::Commit()
         .pPushConstantRanges    = m_PushConstants.data()
     };
 
-    if (vkCreatePipelineLayout(*s_VKDevice, &pipelineLayoutInfo, nullptr, &m_VKPipelineLayout) != VK_SUCCESS)
+    if (vkCreatePipelineLayout(s_RenderInstance->GetDevice(), &pipelineLayoutInfo, nullptr, &m_VKPipelineLayout) != VK_SUCCESS)
         throw std::runtime_error("failed to create pipeline layout.");
 
     if (m_IsCompute)
@@ -151,7 +151,7 @@ void Pipeline::Commit()
             .layout = m_VKPipelineLayout
         };
 
-        if (vkCreateComputePipelines(*s_VKDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_VKPipeline) != VK_SUCCESS)
+        if (vkCreateComputePipelines(s_RenderInstance->GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_VKPipeline) != VK_SUCCESS)
             throw std::runtime_error("failed to create compute pipeline.");
     }
     else
@@ -161,10 +161,10 @@ void Pipeline::Commit()
         VkPipelineVertexInputStateCreateInfo vertexInputInfo =
         {
             .sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-            .vertexBindingDescriptionCount   = 0,
-            .pVertexBindingDescriptions      = nullptr,
-            .vertexAttributeDescriptionCount = 0,
-            .pVertexAttributeDescriptions    = nullptr
+            .vertexBindingDescriptionCount   = (uint32_t)m_VKVertexBindings.size(),
+            .pVertexBindingDescriptions      = m_VKVertexBindings.data(),
+            .vertexAttributeDescriptionCount = (uint32_t)m_VKVertexAttributes.size(),
+            .pVertexAttributeDescriptions    = m_VKVertexAttributes.data()
         };
 
         // Input Assembly
@@ -263,13 +263,92 @@ void Pipeline::Commit()
             .subpass             = 0
         };
 
-        if (vkCreateGraphicsPipelines(*s_VKDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_VKPipeline) != VK_SUCCESS) 
+        if (vkCreateGraphicsPipelines(s_RenderInstance->GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_VKPipeline) != VK_SUCCESS) 
             throw std::runtime_error("failed to create graphics pipeline.");
     }
 }
 
 // Buffer Implementation
 // ----------------------------------
+
+Buffer::Buffer(VkDeviceSize size, VkBufferUsageFlags bufferFlags, VkMemoryPropertyFlags memoryFlags, VmaAllocationCreateFlags allocFlags)
+{
+    VkBufferCreateInfo bufferInfo
+    {
+        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        .size  = size,
+        .usage = bufferFlags,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE
+    };
+
+    VmaAllocationCreateInfo allocInfo = 
+    {
+        .flags         = allocFlags,
+        .usage         = VMA_MEMORY_USAGE_UNKNOWN,
+        .requiredFlags = memoryFlags,
+    };
+
+    vmaCreateBuffer(s_RenderInstance->GetMemoryAllocator(), &bufferInfo, &allocInfo, &m_VKBuffer, &m_VMAAllocation, nullptr);
+}
+
+void Buffer::SetData(void* srcPtr, uint32_t size)
+{
+    // Create a staging buffer resource to map data. 
+
+    Buffer stagingBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
+
+    // Map data to device. 
+    void* dstPtr;
+    vmaMapMemory(s_RenderInstance->GetMemoryAllocator(), stagingBuffer.m_VMAAllocation, &dstPtr);
+    memcpy(dstPtr, srcPtr, size);
+    vmaUnmapMemory(s_RenderInstance->GetMemoryAllocator(), stagingBuffer.m_VMAAllocation);
+
+    // Create and dispatch  a copy command 
+    VkCommandBufferAllocateInfo commandAllocInfo
+    {
+        .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandPool        = s_RenderInstance->GetCommandPool(),
+        .commandBufferCount = 1
+    };
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(s_RenderInstance->GetDevice(), &commandAllocInfo, &commandBuffer);
+
+    VkCommandBufferBeginInfo beginInfo
+    {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+    };
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+    VkBufferCopy copyRegion
+    {
+        .srcOffset = 0,
+        .dstOffset = 0,
+        .size      = size
+    };
+    vkCmdCopyBuffer(commandBuffer, stagingBuffer.m_VKBuffer, m_VKBuffer, 1, &copyRegion);
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo
+    {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &commandBuffer
+    };
+
+    vkQueueSubmit(s_RenderInstance->GetGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(s_RenderInstance->GetGraphicsQueue());
+    vkFreeCommandBuffers(s_RenderInstance->GetDevice(), s_RenderInstance->GetCommandPool(), 1, &commandBuffer);
+
+    stagingBuffer.Release(s_RenderInstance->GetDevice());
+}
+
+void Buffer::Release(VkDevice device)
+{
+    vmaDestroyBuffer(s_RenderInstance->GetMemoryAllocator(), m_VKBuffer, m_VMAAllocation);
+}
 
 // Image Implementation
 // ----------------------------------

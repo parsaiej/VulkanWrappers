@@ -17,11 +17,10 @@
 
 #include <vulkan/vulkan.h>
 
+#include "VmaUsage.h"
+
 // Forward-declare GLFW
 struct GLFWwindow;
-
-// Catch-all for image, buffer, pipeline resources. 
-class GraphicsResource;
 
 namespace Wrappers
 {
@@ -30,9 +29,6 @@ namespace Wrappers
         VkFormat    backBufferFormat;
         VkRect2D    backBufferScissor;
         VkViewport  backBufferViewport;
-        
-        // User-defined map of named resources. 
-        std::map<std::string, std::unique_ptr<GraphicsResource>>& resources;
     };
 
     struct RenderContext
@@ -43,12 +39,14 @@ namespace Wrappers
         VkRect2D        backBufferScissor;
         VkViewport      backBufferViewport;
 
-        // Resources
-        std::map<std::string, std::unique_ptr<GraphicsResource>>& resources;
-
         // Unfortunately need to pass the function pointers due to extension
         PFN_vkCmdBeginRenderingKHR renderBegin;
         PFN_vkCmdEndRenderingKHR   renderEnd;
+    };
+
+    struct ReleaseContext
+    {
+        VkDevice device;
     };
 
     struct Frame
@@ -72,13 +70,21 @@ namespace Wrappers
         ~RenderInstance();
 
         // Invoke the render-loop with a callback for filling out the current command buffer. 
-        int Execute(std::function<void(InitializeContext)>, std::function<void(RenderContext)>);
+        int Execute(std::function<void(InitializeContext)>, std::function<void(RenderContext)>, std::function<void(ReleaseContext)>);
 
         void WaitForIdle() { vkDeviceWaitIdle(m_VKDevice); }
+
+        VkDevice GetDevice()                 { return m_VKDevice;         }
+        VkPhysicalDevice GetPhysicalDevice() { return m_VKPhysicalDevice; }
+        VmaAllocator GetMemoryAllocator()    { return m_VMAAllocator;     }
+        VkCommandPool GetCommandPool()       { return m_VKCommandPool;    }
+        VkQueue GetGraphicsQueue()           { return m_VKGraphicsQueue;  }
 
     private:
 
         GLFWwindow* m_GLFW;
+
+        VmaAllocator m_VMAAllocator;
 
         VkInstance       m_VKInstance;
         VkPhysicalDevice m_VKPhysicalDevice;
@@ -106,8 +112,6 @@ namespace Wrappers
 
 	    PFN_vkCmdBeginRenderingKHR m_VKCmdBeginRenderingKHR;
 	    PFN_vkCmdEndRenderingKHR   m_VKCmdEndRenderingKHR;
-
-        std::map<std::string, std::unique_ptr<GraphicsResource>> m_Resources;
 
         uint32_t m_FrameIndex;
     };

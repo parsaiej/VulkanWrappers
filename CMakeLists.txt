@@ -3,6 +3,8 @@
 
 find_package(glfw3 REQUIRED)
 
+add_subdirectory(VulkanMemoryAllocator)
+
 # OS-specific needs.
 # -----------------------
 
@@ -16,7 +18,7 @@ endif ()
 # Library
 # -----------------------
 
-add_library(Wrappers SHARED "RenderInstance.cpp" "GraphicsResource.cpp")
+add_library(Wrappers SHARED "RenderInstance.cpp" "GraphicsResource.cpp" "VmaUsage.cpp")
 
 # Include
 # -----------------------
@@ -26,4 +28,4 @@ target_include_directories(Wrappers PRIVATE ${Vulkan_INCLUDE_DIRS} ${GLFW_INCLUD
 # Link
 # -----------------------
 
-target_link_libraries(Wrappers PRIVATE ${Vulkan_LIBRARIES} glfw MetalUtility)
+target_link_libraries(Wrappers PRIVATE ${Vulkan_LIBRARIES} glfw MetalUtility GPUOpen::VulkanMemoryAllocator)

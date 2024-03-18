@@ -283,9 +283,6 @@ RenderInstance::RenderInstance(int width, int height)
     if (vkCreateDevice(m_VKPhysicalDevice, &deviceCreateInfo, nullptr, &m_VKDevice) != VK_SUCCESS) 
         throw std::runtime_error("failed to create logical device.");
 
-    // Set the device for simpler resource creation.
-    GraphicsResource::s_VKDevice = &m_VKDevice;
-
     // Acquire queues
     vkGetDeviceQueue(m_VKDevice, m_QueueFamilyIndexGraphics, 0, &m_VKGraphicsQueue);
     vkGetDeviceQueue(m_VKDevice, m_QueueFamilyIndexPresent,  0, &m_VKPresentQueue);
@@ -293,6 +290,29 @@ RenderInstance::RenderInstance(int width, int height)
     // Function pointers to the dynamic rendering extension API. 
 	m_VKCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(vkGetDeviceProcAddr(m_VKDevice, "vkCmdBeginRenderingKHR"));
 	m_VKCmdEndRenderingKHR   = reinterpret_cast<PFN_vkCmdEndRenderingKHR>  (vkGetDeviceProcAddr(m_VKDevice, "vkCmdEndRenderingKHR"  ));
+
+    // Create Vulkan Memory Allocator
+    // ----------------------
+
+    VmaVulkanFunctions vmaVulkanFunctions
+    {
+        .vkGetInstanceProcAddr = &vkGetInstanceProcAddr,
+        .vkGetDeviceProcAddr   = &vkGetDeviceProcAddr  
+    };
+
+    VmaAllocatorCreateInfo allocatorCreateInfo
+    {
+        .flags            = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT,
+        .vulkanApiVersion = VK_API_VERSION_1_2,
+        .physicalDevice   = m_VKPhysicalDevice,
+        .device           = m_VKDevice,
+        .instance         = m_VKInstance,
+        .pVulkanFunctions = &vmaVulkanFunctions
+    };
+    vmaCreateAllocator(&allocatorCreateInfo, &m_VMAAllocator);
+
+    // Set the device for simpler resource creation.
+    GraphicsResource::s_RenderInstance = this;
 
     // Create Swapchain
     // ----------------------
@@ -434,8 +454,7 @@ RenderInstance::~RenderInstance()
 {
     WaitForIdle();
 
-    for (auto& resource : m_Resources)
-        resource.second->Release(m_VKDevice);
+    vmaDestroyAllocator(m_VMAAllocator);
 
     vkDestroyCommandPool(m_VKDevice, m_VKCommandPool, nullptr);
 
@@ -456,15 +475,16 @@ RenderInstance::~RenderInstance()
     glfwTerminate();
 }
 
-int RenderInstance::Execute(std::function<void(InitializeContext)> initializeCallback, std::function<void(RenderContext)> renderCallback)
+int RenderInstance::Execute( std::function<void(InitializeContext)> initializeCallback, 
+                             std::function<void(RenderContext)>     renderCallback,
+                             std::function<void(ReleaseContext)>    releaseCallback)
 {
     // Invoke the user initialization. 
     InitializeContext initializeContext
     {
         .backBufferViewport = m_VKViewport,
         .backBufferScissor  = m_VKScissor,
-        .backBufferFormat   = m_VKBackbufferFormat.format,
-        .resources = m_Resources
+        .backBufferFormat   = m_VKBackbufferFormat.format
     };
     initializeCallback(initializeContext);
 
@@ -533,8 +553,7 @@ int RenderInstance::Execute(std::function<void(InitializeContext)> initializeCal
                 .backBufferScissor  = m_VKScissor,
                 .backBufferViewport = m_VKViewport,
                 .renderBegin        = m_VKCmdBeginRenderingKHR,
-                .renderEnd          = m_VKCmdEndRenderingKHR,
-                .resources          = m_Resources
+                .renderEnd          = m_VKCmdEndRenderingKHR
             };
 
             renderCallback(renderContext);
@@ -622,6 +641,16 @@ int RenderInstance::Execute(std::function<void(InitializeContext)> initializeCal
 
         m_FrameIndex = (m_FrameIndex + 1) % m_VKSwapchainImageCount;
     }
+
+    // Release user-data. 
+
+    WaitForIdle();
+
+    ReleaseContext releaseContext
+    {
+        .device = m_VKDevice
+    };
+    releaseCallback(releaseContext);
 
     return 0;
 }
