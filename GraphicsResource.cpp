@@ -86,7 +86,7 @@ void Pipeline::SetShaderProgram(const char* filePathCompute)
     TryCreateShaderModule(s_RenderInstance->GetDevice(), &m_VKShaderCS, filePathCompute);
 }
 
-void Pipeline::Release(VkDevice device)
+void Pipeline::Release()
 {
     SAFE_RELEASE(vkDestroyShaderModule,   m_VKShaderVS);
     SAFE_RELEASE(vkDestroyShaderModule,   m_VKShaderFS);
@@ -237,7 +237,22 @@ void Pipeline::Commit()
         {
             .sType                   = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
             .colorAttachmentCount    = (uint32_t)m_ColorRTFormats.size(),
-            .pColorAttachmentFormats = m_ColorRTFormats.data()
+            .pColorAttachmentFormats = m_ColorRTFormats.data(),
+            .depthAttachmentFormat   = VK_FORMAT_D32_SFLOAT,
+        };
+
+        VkPipelineDepthStencilStateCreateInfo depthStencilInfo
+        {
+            .sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+            .depthTestEnable       = VK_TRUE,
+            .depthWriteEnable      = VK_TRUE,
+            .depthCompareOp        = VK_COMPARE_OP_LESS,
+            .depthBoundsTestEnable = VK_FALSE,
+            .minDepthBounds        = 0.0,
+            .maxDepthBounds        = 1.0,
+            .stencilTestEnable     = VK_FALSE,
+            .front                 = {},
+            .back                  = {}
         };
 
         VkGraphicsPipelineCreateInfo pipelineInfo = 
@@ -251,7 +266,7 @@ void Pipeline::Commit()
             .pViewportState      = &viewportState,
             .pRasterizationState = &rasterizer,
             .pMultisampleState   = &multisampling,
-            .pDepthStencilState  = nullptr,
+            .pDepthStencilState  = &depthStencilInfo,
             .pColorBlendState    = &colorBlending,
             .pDynamicState       = nullptr,
             .layout              = m_VKPipelineLayout,
@@ -342,13 +357,79 @@ void Buffer::SetData(void* srcPtr, uint32_t size)
     vkQueueWaitIdle(s_RenderInstance->GetGraphicsQueue());
     vkFreeCommandBuffers(s_RenderInstance->GetDevice(), s_RenderInstance->GetCommandPool(), 1, &commandBuffer);
 
-    stagingBuffer.Release(s_RenderInstance->GetDevice());
+    stagingBuffer.Release();
 }
 
-void Buffer::Release(VkDevice device)
+void Buffer::Release()
 {
     vmaDestroyBuffer(s_RenderInstance->GetMemoryAllocator(), m_VKBuffer, m_VMAAllocation);
 }
 
 // Image Implementation
 // ----------------------------------
+
+Image::Image(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage)
+{
+    VkImageCreateInfo createInfo = 
+    {
+        .sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .imageType     = VK_IMAGE_TYPE_2D,
+        .extent.width  = width,
+        .extent.height = height,
+        .extent.depth  = 1,
+        .mipLevels     = 1,
+        .arrayLayers   = 1,
+        .format        = format,
+        .tiling        = VK_IMAGE_TILING_OPTIMAL,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .usage         = usage,
+        .samples       = VK_SAMPLE_COUNT_1_BIT
+    };
+    
+    VmaAllocationCreateInfo allocInfo = 
+    {
+        .usage    = VMA_MEMORY_USAGE_AUTO,
+        .flags    = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
+        .priority = 1.0
+    };
+    
+    vmaCreateImage(s_RenderInstance->GetMemoryAllocator(), &createInfo, &allocInfo, &m_VKImage, &m_VMAAllocation, nullptr);
+}
+
+void Image::Release()
+{
+    vmaDestroyImage(s_RenderInstance->GetMemoryAllocator(), m_VKImage, m_VMAAllocation);
+}
+
+// Image View Implementation
+// ----------------------------------
+
+ImageView::ImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
+{
+    VkImageViewCreateInfo createInfo =
+    {
+        .sType        = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .image        = image,
+        .viewType     = VK_IMAGE_VIEW_TYPE_2D,
+        .format       = format,
+
+        .components.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+        .components.g = VK_COMPONENT_SWIZZLE_IDENTITY,
+        .components.b = VK_COMPONENT_SWIZZLE_IDENTITY,
+        .components.a = VK_COMPONENT_SWIZZLE_IDENTITY,
+
+        .subresourceRange.aspectMask     = aspectFlags,
+        .subresourceRange.baseMipLevel   = 0,
+        .subresourceRange.levelCount     = 1,
+        .subresourceRange.baseArrayLayer = 0,
+        .subresourceRange.layerCount     = 1
+    };
+
+    if (vkCreateImageView(s_RenderInstance->GetDevice(), &createInfo, NULL, &m_VKImageView) != VK_SUCCESS)
+        throw std::runtime_error("failed to create swap chain image view.");
+}
+
+void ImageView::Release()
+{
+    vkDestroyImageView(s_RenderInstance->GetDevice(), m_VKImageView, nullptr);
+}
