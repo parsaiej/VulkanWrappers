@@ -98,7 +98,7 @@ include all public interface declarations. Example:
 
 #define VMA_STATIC_VULKAN_FUNCTIONS  0
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
-#include "VulkanMemoryAllocator/include/vk_mem_alloc.h"
+#include "../../VulkanMemoryAllocator/include/vk_mem_alloc.h"
 
 #ifdef __clang__
     #pragma clang diagnostic pop

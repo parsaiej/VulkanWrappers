@@ -1,7 +1,16 @@
-# Packages.
+# Library Name
+# -----------------------
+
+set(WRAPPERS_NAME VulkanWrappers)
+
+# Misc. Packages.
 # -----------------------
 
 find_package(glfw3 REQUIRED)
+find_package(Vulkan REQUIRED)
+
+# Add VMA
+# -----------------------
 
 add_subdirectory(VulkanMemoryAllocator)
 
@@ -11,21 +20,36 @@ add_subdirectory(VulkanMemoryAllocator)
 if (APPLE)
     find_library(COCOA_LIBRARY Cocoa REQUIRED)
     find_library(QUARTZ_CORE QuartzCore REQUIRED)
+
     add_library(MetalUtility SHARED "MetalUtility/MetalUtility.m")
-    target_link_libraries(MetalUtility ${QUARTZ_CORE} ${COCOA_LIBRARY} glfw)
+
+    # Link
+    target_link_libraries(MetalUtility glfw)
+    target_link_libraries(MetalUtility ${QUARTZ_CORE})
+    target_link_libraries(MetalUtility ${COCOA_LIBRARY})
 endif ()
 
 # Library
 # -----------------------
 
-add_library(Wrappers SHARED "RenderInstance.cpp" "GraphicsResource.cpp" "VmaUsage.cpp")
+add_library(${WRAPPERS_NAME} SHARED 
+    "VmaUsage.cpp" 
+    "Device.cpp" 
+    "Window.cpp"
+)
 
 # Include
 # -----------------------
 
-target_include_directories(Wrappers PRIVATE ${Vulkan_INCLUDE_DIRS} ${GLFW_INCLUDE_DIRS})
+target_include_directories(${WRAPPERS_NAME} PRIVATE ${GLFW_INCLUDE_DIRS})
+target_include_directories(${WRAPPERS_NAME} PRIVATE ${Vulkan_INCLUDE_DIRS})
+target_include_directories(${WRAPPERS_NAME} PRIVATE "MetalUtility/")
+target_include_directories(${WRAPPERS_NAME} PRIVATE "Include/")
 
 # Link
 # -----------------------
 
-target_link_libraries(Wrappers PRIVATE ${Vulkan_LIBRARIES} glfw MetalUtility GPUOpen::VulkanMemoryAllocator)
+target_link_libraries(${WRAPPERS_NAME} PRIVATE ${Vulkan_LIBRARIES})
+target_link_libraries(${WRAPPERS_NAME} PRIVATE glfw)
+target_link_libraries(${WRAPPERS_NAME} PRIVATE MetalUtility)
+target_link_libraries(${WRAPPERS_NAME} PRIVATE GPUOpen::VulkanMemoryAllocator)
