@@ -151,18 +151,27 @@ Device::Device(Window* window)
         enabledExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
         enabledExtensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
         enabledExtensions.push_back(VK_EXT_SHADER_OBJECT_EXTENSION_NAME);
+        enabledExtensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
     }
 
 #if __APPLE__
     enabledExtensions.push_back("VK_KHR_portability_subset");
 #endif
 
+    // Setup for VK_KHR_synchronization2
+
+    VkPhysicalDeviceSynchronization2FeaturesKHR synchronization2Feature =
+    {
+        .sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES_KHR,
+        .synchronization2 = VK_TRUE
+    };
+
     // Setup for VK_EXT_shader_object
 
     VkPhysicalDeviceShaderObjectFeaturesEXT shaderObjectFeature = 
     {
         .sType        = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_OBJECT_FEATURES_EXT,
-        .pNext        = nullptr,
+        .pNext        = &synchronization2Feature,
         .shaderObject = VK_TRUE
     };
 
@@ -223,12 +232,22 @@ Device::Device(Window* window)
 
     if (m_Window != nullptr)
         m_Window->CreateVulkanSwapchain(this);
+
+    // Extension function pointers
+    // ---------------------
+
+	m_VKCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>  (vkGetDeviceProcAddr(m_VKDeviceLogical, "vkCmdBeginRenderingKHR"));
+	m_VKCmdEndRenderingKHR   = reinterpret_cast<PFN_vkCmdEndRenderingKHR>    (vkGetDeviceProcAddr(m_VKDeviceLogical, "vkCmdEndRenderingKHR"  ));
+    m_VKCmdBarrierKHR        = reinterpret_cast<PFN_vkCmdPipelineBarrier2KHR>(vkGetDeviceProcAddr(m_VKDeviceLogical, "vkCmdPipelineBarrier2KHR"));
 }
 
 Device::~Device()
 {
+    vkDeviceWaitIdle(m_VKDeviceLogical);
+
     if (m_Window != nullptr)
         m_Window->ReleaseVulkanObjects(this);
 
+    vkDestroyCommandPool(m_VKDeviceLogical, m_VKCommandPool, nullptr);
     vkDestroyDevice(m_VKDeviceLogical, nullptr);
 }

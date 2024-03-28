@@ -8,6 +8,9 @@
 
 #include <vulkan/vulkan.h>
 
+// Extension Functions
+// -----------------------
+
 namespace VulkanWrappers
 {
     class Window;
@@ -25,6 +28,11 @@ namespace VulkanWrappers
         inline VkCommandPool GetCommandPool() const { return m_VKCommandPool;    }
         inline VkQueue GetGraphicsQueue()     const { return m_VKQueueGraphics;  }
         inline VkQueue GetPresentQueue()      const { return m_VKQueuePresent;   }
+
+        // Extension shortcuts
+        inline void BeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo* renderingInfo) { m_VKCmdBeginRenderingKHR(commandBuffer, renderingInfo); }
+        inline void EndRendering(VkCommandBuffer commandBuffer) { m_VKCmdEndRenderingKHR(commandBuffer); }
+        inline void Barrier(VkCommandBuffer commandBuffer, const VkDependencyInfoKHR* dependencyInfo) { m_VKCmdBarrierKHR(commandBuffer, dependencyInfo); }
 
         ~Device();
 
@@ -44,6 +52,11 @@ namespace VulkanWrappers
         // Present Queue
         VkQueue  m_VKQueuePresent;
         uint32_t m_VKQueuePresentIndex;
+
+        // Extension Functions
+        PFN_vkCmdBeginRenderingKHR   m_VKCmdBeginRenderingKHR;
+        PFN_vkCmdEndRenderingKHR     m_VKCmdEndRenderingKHR;
+        PFN_vkCmdPipelineBarrier2KHR m_VKCmdBarrierKHR;
     };
 }
 

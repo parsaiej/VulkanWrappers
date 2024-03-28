@@ -147,9 +147,11 @@ void Window::CreateVulkanSwapchain(const Device* device)
 
     SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(device->GetPhysical(), m_VKSurface);
 
-    // Store the format and extent
-    m_VKSurfaceFormat = ChooseSwapSurfaceFormat(swapChainSupport);
-    m_VKSurfaceExtent = ChooseSwapExtent(&swapChainSupport.capabilities, NULL);
+    // Store the format, extent, scissor, viewport
+    m_VKSurfaceFormat   = ChooseSwapSurfaceFormat(swapChainSupport);
+    m_VKSurfaceExtent   = ChooseSwapExtent(&swapChainSupport.capabilities, NULL);
+    m_VKSurfaceViewport = { 0, 0, (float)m_Width, (float)m_Height, 0.0, 1.0 };
+    m_VKSurfaceScissor  = { 0, 0, m_VKSurfaceExtent };
 
     uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
 
@@ -185,8 +187,10 @@ void Window::CreateVulkanSwapchain(const Device* device)
     std::vector<VkImage> swapChainImages(m_VKSwapchainImageCount);
     vkGetSwapchainImagesKHR(device->GetLogical(), m_VKSwapchain, &m_VKSwapchainImageCount, swapChainImages.data());
 
+    m_Frames.resize(m_VKSwapchainImageCount);
+
     // Create frames.
-    for (size_t i = 0; i < NUM_FRAMES_IN_FLIGHT; ++i)
+    for (size_t i = 0; i < m_VKSwapchainImageCount; ++i)
     {
         // Swapchain image. 
 
@@ -194,7 +198,7 @@ void Window::CreateVulkanSwapchain(const Device* device)
 
         // Swapchain image view.
 
-        VkImageViewCreateInfo createInfo =
+        VkImageViewCreateInfo backBufferViewInfo =
         {
             .sType        = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
             .image        = m_Frames[i].backBuffer,
@@ -213,9 +217,12 @@ void Window::CreateVulkanSwapchain(const Device* device)
             .subresourceRange.layerCount     = 1
         };
 
-        if (vkCreateImageView(device->GetLogical(), &createInfo, NULL, &m_Frames[i].backBufferView) != VK_SUCCESS)
+        if (vkCreateImageView(device->GetLogical(), &backBufferViewInfo, NULL, &m_Frames[i].backBufferView) != VK_SUCCESS)
             throw std::runtime_error("failed to create swap chain image view.");
+    }
 
+    for (size_t i = 0; i < NUM_FRAMES_IN_FLIGHT; ++i)
+    {
         // Synchronization primitives (graphics).
 
         VkSemaphoreCreateInfo binarySemaphoreInfo
@@ -244,7 +251,7 @@ void Window::CreateVulkanSwapchain(const Device* device)
             .commandBufferCount = 1
         };
 
-        if (vkAllocateCommandBuffers(device->GetLogical(), &commandAllocateInfo, &m_Frames[i].commandBuffer) != VK_SUCCESS)
+        if (vkAllocateCommandBuffers(device->GetLogical(), &commandAllocateInfo, &m_VKCommandBuffers[i]) != VK_SUCCESS)
             throw std::runtime_error("failed to allocate command buffer.");
     }
 }
@@ -256,8 +263,6 @@ bool Window::NextFrame(const Device* device, Frame* frame)
 
     glfwPollEvents();
 
-    *frame = m_Frames[m_FrameIndex];
-
     // Pause thread until graphics queue finished processing. 
     vkWaitForFences(device->GetLogical(), 1u, &m_GraphicsQueueCompleteFences[m_FrameIndex], VK_TRUE, UINT64_MAX);
 
@@ -267,13 +272,18 @@ bool Window::NextFrame(const Device* device, Frame* frame)
     // Grab the next image in the swap chain and signal the current semaphore when it can be drawn to. 
     vkAcquireNextImageKHR(device->GetLogical(), m_VKSwapchain, UINT64_MAX, m_ImageAcquireSemaphores[m_FrameIndex], VK_NULL_HANDLE, &m_VKSwapchainImageIndex);
 
+    *frame = m_Frames[m_VKSwapchainImageIndex];
+    
+    // Attach the command buffer for this frame
+    frame->commandBuffer = m_VKCommandBuffers[m_FrameIndex];
+
     // Reset the command buffer for this frame.
     vkResetCommandBuffer(frame->commandBuffer, 0x0);
 
     return true;
 }
 
-void Window::SubmitFrame(const Device* device, const Frame* frame)
+void Window::SubmitFrame(Device* device, const Frame* frame)
 {
     VkPipelineStageFlags backBufferWaitStage[] = 
     {
@@ -281,7 +291,7 @@ void Window::SubmitFrame(const Device* device, const Frame* frame)
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
     };
 
-    VkSubmitInfo graphicsQueueSubmitInfo
+    VkSubmitInfo submitInfo
     {
         .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         .commandBufferCount   = 1u,
@@ -294,7 +304,9 @@ void Window::SubmitFrame(const Device* device, const Frame* frame)
     };
 
     // Submit the graphics queue and signal both the presentation semaphore and the next frame's fence when done. 
-    vkQueueSubmit(device->GetGraphicsQueue(), 1u, &graphicsQueueSubmitInfo, m_GraphicsQueueCompleteFences[m_FrameIndex]);
+    vkQueueSubmit(device->GetGraphicsQueue(), 1u, &submitInfo, m_GraphicsQueueCompleteFences[m_FrameIndex]);
+
+    // Present.
 
     VkPresentInfoKHR presentInfo
     {
@@ -317,6 +329,15 @@ void Window::ReleaseVulkanObjects(const Device* device)
 {
     for (auto& frame : m_Frames)
         vkDestroyImageView(device->GetLogical(), frame.backBufferView, nullptr);
+
+    for (auto& fence : m_GraphicsQueueCompleteFences)
+        vkDestroyFence(device->GetLogical(), fence, nullptr);
+
+    for (auto& semaphore : m_GraphicsQueueCompleteSemaphores)
+        vkDestroySemaphore(device->GetLogical(), semaphore, nullptr);
+
+    for (auto& semaphore : m_ImageAcquireSemaphores)
+        vkDestroySemaphore(device->GetLogical(), semaphore, nullptr);
 
     if (m_VKSwapchain != VK_NULL_HANDLE)
         vkDestroySwapchainKHR(device->GetLogical(), m_VKSwapchain, nullptr);

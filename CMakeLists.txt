@@ -36,6 +36,7 @@ add_library(${WRAPPERS_NAME} SHARED
     "VmaUsage.cpp" 
     "Device.cpp" 
     "Window.cpp"
+    "Image.cpp"
 )
 
 # Include
