@@ -7,88 +7,96 @@ It simplifies the creation of an OS-agnostic window with a triple-buffered swapc
 
 ```
 
-#include <RenderInstance.h>
-#include <GraphicsResource.h>
+#include <VulkanWrappers/Device.h>
+#include <VulkanWrappers/Window.h>
+#include <VulkanWrappers/Image.h>
+#include <VulkanWrappers/Shader.h>
 
-#include <iostream>
 #include <memory>
 
-using namespace Wrappers;
+using namespace VulkanWrappers;
 
 // Resources
-// ----------------------
+// ---------------------
 
-#define PIPELINE_TRIANGLE "triangle"
+static std::unique_ptr<Shader> s_TriangleVert;
+static std::unique_ptr<Shader> s_TriangleFrag;
+
+void CreateResources(Device& device)
+{
+    s_TriangleVert = std::make_unique<Shader>("assets/TriangleVert.spv", VK_SHADER_STAGE_VERTEX_BIT,   VK_SHADER_STAGE_FRAGMENT_BIT);
+    s_TriangleFrag = std::make_unique<Shader>("assets/TriangleFrag.spv", VK_SHADER_STAGE_FRAGMENT_BIT, 0x0);
+
+    device.CreateShaders ({ s_TriangleVert.get(), s_TriangleFrag.get() });
+}
+
+void ReleaseResources(Device& device)
+{
+    device.ReleaseShaders ({ s_TriangleVert.get(), s_TriangleFrag.get() });
+}
 
 // Implementation
-// ----------------------
+// ---------------------
 
-void InitFunc(InitializeContext context)
+int main()
 {
-    context.resources[PIPELINE_TRIANGLE] = std::make_unique<Pipeline>();
-    {
-        auto trianglePipeline = static_cast<Pipeline*>(context.resources[PIPELINE_TRIANGLE].get());
+    // Create window. 
+    Window window("Sample", 800, 600);
 
-        // Configure the triangle pipeline.
-        trianglePipeline->SetShaderProgram("build/vert.spv", "build/frag.spv");
-        trianglePipeline->SetScissor(context.backBufferScissor);
-        trianglePipeline->SetViewport(context.backBufferViewport);
-        trianglePipeline->SetColorTargetFormats( { context.backBufferFormat } );
-        trianglePipeline->Commit();
+    // Initialize graphics device usage with the window. 
+    Device device(&window);
+
+    // Build all the runtime resources. 
+    CreateResources(device);
+
+    // Handle to current frame to write commands to. 
+    Frame frame;
+
+    while (window.NextFrame(&device, &frame))
+    {
+        auto cmd = frame.commandBuffer;
+
+        Image::TransferBackbufferToWrite(cmd, &device, frame.backBuffer);
+
+        VkRenderingAttachmentInfoKHR colorAttachment
+        {
+            .sType       = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
+            .imageView   = frame.backBufferView,
+            .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            .loadOp      = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp     = VK_ATTACHMENT_STORE_OP_STORE,
+            .clearValue.color = { 0, 0, 0, 1 }
+        };
+
+        VkRenderingInfoKHR renderInfo
+        {
+            .sType                = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
+            .renderArea           = window.GetScissor(),
+            .layerCount           = 1,
+            .colorAttachmentCount = 1,
+            .pColorAttachments    = &colorAttachment,
+            .pDepthAttachment     = nullptr,
+            .pStencilAttachment   = nullptr
+        };
+
+        // Write commands for this frame. 
+        Device::vkCmdBeginRenderingKHR(cmd, &renderInfo);
+
+        Shader::Bind(cmd, *s_TriangleVert);
+        Shader::Bind(cmd, *s_TriangleFrag);
+        Device::SetDefaultRenderState(cmd);
+        vkCmdDraw(cmd, 3u, 1u, 0u, 0u);
+
+        Device::vkCmdEndRenderingKHR(cmd);
+
+        Image::TransferBackbufferToPresent(cmd, &device, frame.backBuffer);
+
+        window.SubmitFrame(&device, &frame);
     }
-}
 
-void RenderFunc(RenderContext context)
-{
-    // Shorthand for command.
-    auto cmd = context.commandBuffer;
+    ReleaseResources(device);
 
-    VkRenderingAttachmentInfoKHR colorAttachment
-    {
-        .sType       = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
-        .imageView   = context.backBufferView,
-        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .loadOp      = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .storeOp     = VK_ATTACHMENT_STORE_OP_STORE,
-        .clearValue.color = {1, 0, 0, 1}
-    };
-
-    VkRenderingInfoKHR renderInfo
-    {
-        .sType                = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
-        .renderArea           = context.backBufferScissor,
-        .layerCount           = 1,
-        .colorAttachmentCount = 1,
-        .pColorAttachments    = &colorAttachment,
-        .pDepthAttachment     = nullptr,
-        .pStencilAttachment   = nullptr
-    };
-
-    vkCmdBeginRendering(cmd, &renderInfo);
-
-    // Issue native Vulkan commands
-    context.resources.at(PIPELINE_TRIANGLE)->Bind(cmd);
-    vkCmdDraw(cmd, 3, 1, 0, 0);
-
-    vkCmdEndRendering(cmd);
-}
-
-// Entry
-// ----------------------
-
-int main(int argc, char *argv[]) 
-{
-    try 
-    {
-        RenderInstance renderInstance(800, 600);
-
-        return renderInstance.Execute(InitFunc, RenderFunc);
-    }
-    catch(const std::exception& e)
-    {
-        std::cerr << e.what() << '\n';
-        return 1; 
-    }
+    return 0;
 }
 
 ```
