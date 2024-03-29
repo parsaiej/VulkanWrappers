@@ -1,10 +1,39 @@
 #include <VulkanWrappers/Device.h>
 #include <VulkanWrappers/Window.h>
+#include <VulkanWrappers/Shader.h>
 
 #include <GLFW/glfw3.h>
 #include <vector>
 
 using namespace VulkanWrappers;
+
+#define DECLARE_VK_FUNC(func) PFN_##func Device::func = nullptr;
+#define GET_VK_FUNC(func) Device::func = reinterpret_cast<PFN_##func> (vkGetDeviceProcAddr(m_VKDeviceLogical, #func));
+
+DECLARE_VK_FUNC(vkCmdBeginRenderingKHR);
+DECLARE_VK_FUNC(vkCmdEndRenderingKHR);
+DECLARE_VK_FUNC(vkCmdPipelineBarrier2KHR);
+DECLARE_VK_FUNC(vkCreateShadersEXT);
+DECLARE_VK_FUNC(vkDestroyShaderEXT);
+DECLARE_VK_FUNC(vkCmdBindShadersEXT);
+DECLARE_VK_FUNC(vkCmdSetPrimitiveTopologyEXT);
+DECLARE_VK_FUNC(vkCmdSetColorWriteMaskEXT);
+DECLARE_VK_FUNC(vkCmdSetPrimitiveRestartEnableEXT);
+DECLARE_VK_FUNC(vkCmdSetColorBlendEnableEXT);
+DECLARE_VK_FUNC(vkCmdSetRasterizerDiscardEnableEXT);
+DECLARE_VK_FUNC(vkCmdSetAlphaToCoverageEnableEXT);
+DECLARE_VK_FUNC(vkCmdSetPolygonModeEXT);
+DECLARE_VK_FUNC(vkCmdSetStencilTestEnableEXT);
+DECLARE_VK_FUNC(vkCmdSetDepthTestEnableEXT);
+DECLARE_VK_FUNC(vkCmdSetColorBlendEquationEXT);
+DECLARE_VK_FUNC(vkCmdSetCullModeEXT);
+DECLARE_VK_FUNC(vkCmdSetDepthBiasEnableEXT);
+DECLARE_VK_FUNC(vkCmdSetDepthWriteEnableEXT);
+DECLARE_VK_FUNC(vkCmdSetFrontFaceEXT);
+DECLARE_VK_FUNC(vkCmdSetViewportWithCountEXT);
+DECLARE_VK_FUNC(vkCmdSetScissorWithCountEXT);
+DECLARE_VK_FUNC(vkCmdSetRasterizationSamplesEXT);
+DECLARE_VK_FUNC(vkCmdSetSampleMaskEXT);
 
 Device::Device(Window* window)
     : m_Window(window)
@@ -152,17 +181,28 @@ Device::Device(Window* window)
         enabledExtensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
         enabledExtensions.push_back(VK_EXT_SHADER_OBJECT_EXTENSION_NAME);
         enabledExtensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
+        enabledExtensions.push_back(VK_KHR_MAINTENANCE_2_EXTENSION_NAME);
+        enabledExtensions.push_back(VK_EXT_EXTENDED_DYNAMIC_STATE_2_EXTENSION_NAME);
     }
 
 #if __APPLE__
     enabledExtensions.push_back("VK_KHR_portability_subset");
 #endif
 
+    // Setup for VK_EXT_extended_dynamic_state2
+
+    VkPhysicalDeviceExtendedDynamicState2FeaturesEXT dynamicState2 = 
+    {
+        .sType                 = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_2_FEATURES_EXT,
+        .extendedDynamicState2 = VK_TRUE
+    };
+
     // Setup for VK_KHR_synchronization2
 
     VkPhysicalDeviceSynchronization2FeaturesKHR synchronization2Feature =
     {
         .sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES_KHR,
+        .pNext            = &dynamicState2,
         .synchronization2 = VK_TRUE
     };
 
@@ -236,9 +276,33 @@ Device::Device(Window* window)
     // Extension function pointers
     // ---------------------
 
-	m_VKCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>  (vkGetDeviceProcAddr(m_VKDeviceLogical, "vkCmdBeginRenderingKHR"));
-	m_VKCmdEndRenderingKHR   = reinterpret_cast<PFN_vkCmdEndRenderingKHR>    (vkGetDeviceProcAddr(m_VKDeviceLogical, "vkCmdEndRenderingKHR"  ));
-    m_VKCmdBarrierKHR        = reinterpret_cast<PFN_vkCmdPipelineBarrier2KHR>(vkGetDeviceProcAddr(m_VKDeviceLogical, "vkCmdPipelineBarrier2KHR"));
+    if (Device::vkCmdBeginRenderingKHR != nullptr)
+        return;
+
+    GET_VK_FUNC(vkCmdBeginRenderingKHR);
+    GET_VK_FUNC(vkCmdEndRenderingKHR);
+    GET_VK_FUNC(vkCmdPipelineBarrier2KHR);
+    GET_VK_FUNC(vkCmdBindShadersEXT);
+    GET_VK_FUNC(vkCmdSetPrimitiveTopologyEXT);
+    GET_VK_FUNC(vkCreateShadersEXT);
+    GET_VK_FUNC(vkDestroyShaderEXT);
+    GET_VK_FUNC(vkCmdSetColorWriteMaskEXT);
+    GET_VK_FUNC(vkCmdSetPrimitiveRestartEnableEXT);
+    GET_VK_FUNC(vkCmdSetColorBlendEnableEXT);
+    GET_VK_FUNC(vkCmdSetRasterizerDiscardEnableEXT);
+    GET_VK_FUNC(vkCmdSetAlphaToCoverageEnableEXT);
+    GET_VK_FUNC(vkCmdSetPolygonModeEXT);
+    GET_VK_FUNC(vkCmdSetStencilTestEnableEXT);
+    GET_VK_FUNC(vkCmdSetDepthTestEnableEXT);
+    GET_VK_FUNC(vkCmdSetColorBlendEquationEXT);
+    GET_VK_FUNC(vkCmdSetCullModeEXT);
+    GET_VK_FUNC(vkCmdSetDepthBiasEnableEXT);
+    GET_VK_FUNC(vkCmdSetDepthWriteEnableEXT);
+    GET_VK_FUNC(vkCmdSetFrontFaceEXT);
+    GET_VK_FUNC(vkCmdSetViewportWithCountEXT);
+    GET_VK_FUNC(vkCmdSetScissorWithCountEXT);
+    GET_VK_FUNC(vkCmdSetRasterizationSamplesEXT);
+    GET_VK_FUNC(vkCmdSetSampleMaskEXT);
 }
 
 Device::~Device()
@@ -250,4 +314,66 @@ Device::~Device()
 
     vkDestroyCommandPool(m_VKDeviceLogical, m_VKCommandPool, nullptr);
     vkDestroyDevice(m_VKDeviceLogical, nullptr);
+}
+
+void Device::CreateShaders(const std::vector<Shader*>& shaders)
+{
+    for (auto& shader : shaders)
+    {
+        // TODO: Do this in one native call. 
+        Device::vkCreateShadersEXT(m_VKDeviceLogical, 1u, shader->GetCreateInfo(), nullptr, shader->GetPrimitivePtr());
+
+        shader->ReleaseByteCode();
+    }
+}
+
+void Device::ReleaseShaders(const std::vector<Shader*>& shaders)
+{
+    for (auto& shader : shaders)
+        Device::vkDestroyShaderEXT(m_VKDeviceLogical, *shader->GetPrimitivePtr(), nullptr);
+}
+
+void Device::SetDefaultRenderState(VkCommandBuffer commandBuffer)
+{
+    static VkColorComponentFlags s_DefaultWriteMask =   VK_COLOR_COMPONENT_R_BIT | 
+                                                        VK_COLOR_COMPONENT_G_BIT | 
+                                                        VK_COLOR_COMPONENT_B_BIT | 
+                                                        VK_COLOR_COMPONENT_A_BIT;
+
+    static VkColorBlendEquationEXT s_DefaultColorBlend = 
+    {
+        // Color
+        VK_BLEND_FACTOR_ONE,
+        VK_BLEND_FACTOR_ZERO,
+        VK_BLEND_OP_ADD,
+
+        // Alpha
+        VK_BLEND_FACTOR_ONE,
+        VK_BLEND_FACTOR_ZERO,
+        VK_BLEND_OP_ADD,
+    };
+
+    static VkBool32     s_DefaultBlendEnable = VK_FALSE;
+    static VkViewport   s_DefaultViewport    = { 0, 0, 64, 64, 0.0, 1.0 };
+    static VkRect2D     s_DefaultScissor     = { 0, 0, 64, 64 };
+    static VkSampleMask s_DefaultSampleMask  = 0xFFFFFFFF;
+
+    Device::vkCmdSetColorBlendEnableEXT       (commandBuffer, 0u, 1u, &s_DefaultBlendEnable);
+    Device::vkCmdSetColorWriteMaskEXT         (commandBuffer, 0u, 1u, &s_DefaultWriteMask);
+    Device::vkCmdSetColorBlendEquationEXT     (commandBuffer, 0u, 1u, &s_DefaultColorBlend);
+    Device::vkCmdSetViewportWithCountEXT      (commandBuffer, 1u, &s_DefaultViewport);
+    Device::vkCmdSetScissorWithCountEXT       (commandBuffer, 1u, &s_DefaultScissor);
+    Device::vkCmdSetPrimitiveRestartEnableEXT (commandBuffer, VK_FALSE);
+    Device::vkCmdSetRasterizerDiscardEnableEXT(commandBuffer, VK_FALSE);
+    Device::vkCmdSetAlphaToCoverageEnableEXT  (commandBuffer, VK_FALSE);
+    Device::vkCmdSetStencilTestEnableEXT      (commandBuffer, VK_FALSE);
+    Device::vkCmdSetDepthTestEnableEXT        (commandBuffer, VK_FALSE);
+    Device::vkCmdSetDepthBiasEnableEXT        (commandBuffer, VK_FALSE);
+    Device::vkCmdSetDepthWriteEnableEXT       (commandBuffer, VK_FALSE);
+    Device::vkCmdSetRasterizationSamplesEXT   (commandBuffer, VK_SAMPLE_COUNT_1_BIT);
+    Device::vkCmdSetSampleMaskEXT             (commandBuffer, VK_SAMPLE_COUNT_1_BIT, &s_DefaultSampleMask);
+    Device::vkCmdSetFrontFaceEXT              (commandBuffer, VK_FRONT_FACE_CLOCKWISE);
+    Device::vkCmdSetPolygonModeEXT            (commandBuffer, VK_POLYGON_MODE_FILL);
+    Device::vkCmdSetCullModeEXT               (commandBuffer, VK_CULL_MODE_BACK_BIT);
+    Device::vkCmdSetPrimitiveTopologyEXT      (commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 }

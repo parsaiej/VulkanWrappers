@@ -280,11 +280,24 @@ bool Window::NextFrame(const Device* device, Frame* frame)
     // Reset the command buffer for this frame.
     vkResetCommandBuffer(frame->commandBuffer, 0x0);
 
+    // Enable the command buffer into a recording state. 
+    VkCommandBufferBeginInfo commandBegin
+    {
+        .sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags            = 0,
+        .pInheritanceInfo = nullptr
+    };
+
+    vkBeginCommandBuffer(frame->commandBuffer, &commandBegin);
+
     return true;
 }
 
 void Window::SubmitFrame(Device* device, const Frame* frame)
 {
+    // Conclude command buffer recording.
+    vkEndCommandBuffer(frame->commandBuffer);
+
     VkPipelineStageFlags backBufferWaitStage[] = 
     {
         // Backbuffer can be written to once it is in this stage. 

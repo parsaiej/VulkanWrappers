@@ -32,7 +32,7 @@ void Image::TransferBackbufferToWrite(VkCommandBuffer commandBuffer, Device* dev
         .pImageMemoryBarriers    = &imageBarrier
     };
 
-    device->Barrier(commandBuffer, &dependencyInfo);
+    Device::vkCmdPipelineBarrier2KHR(commandBuffer, &dependencyInfo);
 }
 
 void Image::TransferBackbufferToPresent(VkCommandBuffer commandBuffer, Device* device, VkImage vkImage)
@@ -64,5 +64,5 @@ void Image::TransferBackbufferToPresent(VkCommandBuffer commandBuffer, Device* d
         .pImageMemoryBarriers    = &imageBarrier
     };
 
-    device->Barrier(commandBuffer, &dependencyInfo);
+    Device::vkCmdPipelineBarrier2KHR(commandBuffer, &dependencyInfo);
 }

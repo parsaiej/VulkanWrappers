@@ -7,6 +7,8 @@
 #endif
 
 #include <vulkan/vulkan.h>
+#include <VulkanWrappers/VmaUsage.h>
+#include <vector>
 
 // Extension Functions
 // -----------------------
@@ -14,6 +16,7 @@
 namespace VulkanWrappers
 {
     class Window;
+    class Shader;
 
     class Device
     {
@@ -28,19 +31,52 @@ namespace VulkanWrappers
         inline VkCommandPool GetCommandPool() const { return m_VKCommandPool;    }
         inline VkQueue GetGraphicsQueue()     const { return m_VKQueueGraphics;  }
         inline VkQueue GetPresentQueue()      const { return m_VKQueuePresent;   }
+        inline VmaAllocator GetAllocator()    const { return m_VMAAllocator;     }
 
-        // Extension shortcuts
-        inline void BeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo* renderingInfo) { m_VKCmdBeginRenderingKHR(commandBuffer, renderingInfo); }
-        inline void EndRendering(VkCommandBuffer commandBuffer) { m_VKCmdEndRenderingKHR(commandBuffer); }
-        inline void Barrier(VkCommandBuffer commandBuffer, const VkDependencyInfoKHR* dependencyInfo) { m_VKCmdBarrierKHR(commandBuffer, dependencyInfo); }
+        static void SetDefaultRenderState(VkCommandBuffer VkCommandBuffer);
 
+        // Utility
+        void CreateShaders  (const std::vector<Shader*>& shaders);
+        void ReleaseShaders (const std::vector<Shader*>& shaders);
+        
         ~Device();
+
+        // Extension Functions
+        #define VK_FUNC_MEMBER(func) static PFN_##func func
+
+        VK_FUNC_MEMBER(vkCmdBeginRenderingKHR);
+        VK_FUNC_MEMBER(vkCmdEndRenderingKHR);
+        VK_FUNC_MEMBER(vkCmdPipelineBarrier2KHR);
+        VK_FUNC_MEMBER(vkCreateShadersEXT);
+        VK_FUNC_MEMBER(vkDestroyShaderEXT);
+        VK_FUNC_MEMBER(vkCmdBindShadersEXT);
+        VK_FUNC_MEMBER(vkCmdSetPrimitiveTopologyEXT);
+        VK_FUNC_MEMBER(vkCmdSetColorWriteMaskEXT);
+        VK_FUNC_MEMBER(vkCmdSetPrimitiveRestartEnableEXT);
+        VK_FUNC_MEMBER(vkCmdSetColorBlendEnableEXT);
+        VK_FUNC_MEMBER(vkCmdSetRasterizerDiscardEnableEXT);
+        VK_FUNC_MEMBER(vkCmdSetAlphaToCoverageEnableEXT);
+        VK_FUNC_MEMBER(vkCmdSetPolygonModeEXT);
+        VK_FUNC_MEMBER(vkCmdSetStencilTestEnableEXT);
+        VK_FUNC_MEMBER(vkCmdSetDepthTestEnableEXT);
+        VK_FUNC_MEMBER(vkCmdSetColorBlendEquationEXT);
+        VK_FUNC_MEMBER(vkCmdSetCullModeEXT);
+        VK_FUNC_MEMBER(vkCmdSetDepthBiasEnableEXT);
+        VK_FUNC_MEMBER(vkCmdSetDepthWriteEnableEXT);
+        VK_FUNC_MEMBER(vkCmdSetFrontFaceEXT);
+        VK_FUNC_MEMBER(vkCmdSetViewportWithCountEXT);
+        VK_FUNC_MEMBER(vkCmdSetScissorWithCountEXT);
+        VK_FUNC_MEMBER(vkCmdSetRasterizationSamplesEXT);
+        VK_FUNC_MEMBER(vkCmdSetSampleMaskEXT);
 
     private:
         VkInstance       m_VKInstance;
         VkPhysicalDevice m_VKDevicePhysical;
         VkDevice         m_VKDeviceLogical;
         VkCommandPool    m_VKCommandPool;
+
+        // Memory Allocation (VMA)
+        VmaAllocator m_VMAAllocator;
 
         // Window Handle
         Window* m_Window;
@@ -52,11 +88,6 @@ namespace VulkanWrappers
         // Present Queue
         VkQueue  m_VKQueuePresent;
         uint32_t m_VKQueuePresentIndex;
-
-        // Extension Functions
-        PFN_vkCmdBeginRenderingKHR   m_VKCmdBeginRenderingKHR;
-        PFN_vkCmdEndRenderingKHR     m_VKCmdEndRenderingKHR;
-        PFN_vkCmdPipelineBarrier2KHR m_VKCmdBarrierKHR;
     };
 }
 
