@@ -13,7 +13,8 @@ namespace VulkanWrappers
     class Shader
     {
     public:
-        Shader(const char* spirvFilePath, VkShaderStageFlagBits stage, VkShaderStageFlags nextStage);
+        Shader() {}
+        Shader(const char* spirvFilePath, VkShaderStageFlagBits stage, VkShaderStageFlags nextStage = 0x0);
 
         static void Bind(VkCommandBuffer commandBuffer, const Shader& shader);
 

@@ -1,6 +1,7 @@
 #include <VulkanWrappers/Device.h>
 #include <VulkanWrappers/Window.h>
 #include <VulkanWrappers/Shader.h>
+#include <VulkanWrappers/Buffer.h>
 
 #include <GLFW/glfw3.h>
 #include <vector>
@@ -331,6 +332,16 @@ void Device::ReleaseShaders(const std::vector<Shader*>& shaders)
 {
     for (auto& shader : shaders)
         Device::vkDestroyShaderEXT(m_VKDeviceLogical, *shader->GetPrimitivePtr(), nullptr);
+}
+
+void Device::CreateBuffers(const std::vector<Buffer*>& buffers)
+{
+
+}
+
+void Device::ReleaseBuffers(const std::vector<Buffer*>& buffers)
+{
+    
 }
 
 void Device::SetDefaultRenderState(VkCommandBuffer commandBuffer)

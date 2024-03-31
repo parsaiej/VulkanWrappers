@@ -37,6 +37,7 @@ add_library(${WRAPPERS_NAME} SHARED
     "Device.cpp" 
     "Window.cpp"
     "Image.cpp"
+    "Buffer.cpp"
     "Shader.cpp"
 )
 

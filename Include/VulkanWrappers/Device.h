@@ -17,6 +17,7 @@ namespace VulkanWrappers
 {
     class Window;
     class Shader;
+    class Buffer;
 
     class Device
     {
@@ -38,6 +39,9 @@ namespace VulkanWrappers
         // Utility
         void CreateShaders  (const std::vector<Shader*>& shaders);
         void ReleaseShaders (const std::vector<Shader*>& shaders);
+
+        void CreateBuffers  (const std::vector<Buffer*>& buffers);
+        void ReleaseBuffers (const std::vector<Buffer*>& buffers);
         
         ~Device();
 
