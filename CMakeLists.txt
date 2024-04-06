@@ -32,7 +32,7 @@ endif ()
 # Library
 # -----------------------
 
-add_library(${WRAPPERS_NAME} SHARED 
+add_library(${WRAPPERS_NAME} SHARED
     "VmaUsage.cpp" 
     "Device.cpp" 
     "Window.cpp"

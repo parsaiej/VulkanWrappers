@@ -42,6 +42,8 @@ namespace VulkanWrappers
 
         void CreateBuffers  (const std::vector<Buffer*>& buffers);
         void ReleaseBuffers (const std::vector<Buffer*>& buffers);
+
+        inline Window* GetWindow() { return m_Window; }
         
         ~Device();
 

@@ -236,7 +236,8 @@ void Window::CreateVulkanSwapchain(const Device* device)
         VkFenceCreateInfo fenceInfo
         {
             .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-            .flags = VK_FENCE_CREATE_SIGNALED_BIT
+            .flags = VK_FENCE_CREATE_SIGNALED_BIT,
+            .pNext = nullptr
         };
 
         vkCreateFence(device->GetLogical(), &fenceInfo, nullptr, &m_GraphicsQueueCompleteFences[i]);

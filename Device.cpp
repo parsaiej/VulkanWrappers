@@ -5,11 +5,12 @@
 
 #include <GLFW/glfw3.h>
 #include <vector>
+#include <assert.h>
 
 using namespace VulkanWrappers;
 
 #define DECLARE_VK_FUNC(func) PFN_##func Device::func = nullptr;
-#define GET_VK_FUNC(func) Device::func = reinterpret_cast<PFN_##func> (vkGetDeviceProcAddr(m_VKDeviceLogical, #func));
+#define GET_VK_FUNC(func) Device::func = reinterpret_cast<PFN_##func> (vkGetDeviceProcAddr(m_VKDeviceLogical, #func)); assert(func != nullptr);
 
 DECLARE_VK_FUNC(vkCmdBeginRenderingKHR);
 DECLARE_VK_FUNC(vkCmdEndRenderingKHR);
