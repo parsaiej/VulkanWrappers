@@ -165,7 +165,7 @@ void Window::CreateVulkanSwapchain(const Device* device)
         .minImageCount         = imageCount,
         .imageExtent           = m_VKSurfaceExtent,
         .imageArrayLayers      = 1,
-        .imageUsage            = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        .imageUsage            = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
         .preTransform          = swapChainSupport.capabilities.currentTransform,
         .compositeAlpha        = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
         .presentMode           = ChooseSwapPresentMode(swapChainSupport),
@@ -243,17 +243,7 @@ void Window::CreateVulkanSwapchain(const Device* device)
         vkCreateFence(device->GetLogical(), &fenceInfo, nullptr, &m_GraphicsQueueCompleteFences[i]);
 
         // Command buffer.
-
-        VkCommandBufferAllocateInfo commandAllocateInfo
-        {
-            .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-            .commandPool        = device->GetCommandPool(),
-            .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            .commandBufferCount = 1
-        };
-
-        if (vkAllocateCommandBuffers(device->GetLogical(), &commandAllocateInfo, &m_VKCommandBuffers[i]) != VK_SUCCESS)
-            throw std::runtime_error("failed to allocate command buffer.");
+        device->CreateCommandBuffer(&m_VKCommandBuffers[i]);
     }
 }
 
@@ -285,7 +275,7 @@ bool Window::NextFrame(const Device* device, Frame* frame)
     VkCommandBufferBeginInfo commandBegin
     {
         .sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags            = 0,
+        .flags            = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
         .pInheritanceInfo = nullptr
     };
 

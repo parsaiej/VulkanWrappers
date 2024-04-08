@@ -18,6 +18,7 @@ namespace VulkanWrappers
     class Window;
     class Shader;
     class Buffer;
+    class Image;
 
     class Device
     {
@@ -36,12 +37,29 @@ namespace VulkanWrappers
 
         static void SetDefaultRenderState(VkCommandBuffer VkCommandBuffer);
 
+        inline void CreateCommandBuffer(VkCommandBuffer* commandBuffer, VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY) const
+        { 
+            VkCommandBufferAllocateInfo commandAllocateInfo
+            {
+                .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+                .commandPool        = m_VKCommandPool,
+                .level              = level,
+                .commandBufferCount = 1
+            };
+
+            if (vkAllocateCommandBuffers(m_VKDeviceLogical, &commandAllocateInfo, commandBuffer) != VK_SUCCESS)
+                throw std::runtime_error("failed to allocate command buffer.");
+        }
+
         // Utility
         void CreateShaders  (const std::vector<Shader*>& shaders);
         void ReleaseShaders (const std::vector<Shader*>& shaders);
 
         void CreateBuffers  (const std::vector<Buffer*>& buffers);
         void ReleaseBuffers (const std::vector<Buffer*>& buffers);
+
+        void CreateImages  (const std::vector<Image*>& images);
+        void ReleaseImages (const std::vector<Image*>& images);
 
         inline Window* GetWindow() { return m_Window; }
         

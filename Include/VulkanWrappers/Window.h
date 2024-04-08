@@ -39,10 +39,11 @@ namespace VulkanWrappers
         void CreateVulkanSwapchain (const Device* device);
         void ReleaseVulkanObjects  (const Device* device);
         
-        inline VkSurfaceKHR   GetVulkanSurface()   const { return m_VKSurface;         };
-        inline VkSwapchainKHR GetVulkanSwapchain() const { return m_VKSwapchain;       };
-        inline VkViewport     GetViewport()        const { return m_VKSurfaceViewport; };
-        inline VkRect2D       GetScissor()         const { return m_VKSurfaceScissor;  };
+        inline VkSurfaceKHR   GetVulkanSurface()      const { return m_VKSurface;         };
+        inline VkSwapchainKHR GetVulkanSwapchain()    const { return m_VKSwapchain;       };
+        inline VkViewport     GetViewport()           const { return m_VKSurfaceViewport; };
+        inline VkRect2D       GetScissor()            const { return m_VKSurfaceScissor;  };
+        inline VkFormat       GetColorSurfaceFormat() const { return m_VKSurfaceFormat.format; };
 
     private:
         uint16_t m_Width;

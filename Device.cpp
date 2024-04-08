@@ -2,6 +2,7 @@
 #include <VulkanWrappers/Window.h>
 #include <VulkanWrappers/Shader.h>
 #include <VulkanWrappers/Buffer.h>
+#include <VulkanWrappers/Image.h>
 
 #include <GLFW/glfw3.h>
 #include <vector>
@@ -254,7 +255,29 @@ Device::Device(Window* window)
     // ---------------------
 
     vkGetDeviceQueue(m_VKDeviceLogical, m_VKQueueGraphicsIndex, 0, &m_VKQueueGraphics);
-    vkGetDeviceQueue(m_VKDeviceLogical, m_VKQueuePresentIndex,  0, &m_VKQueuePresent);
+
+    if (m_Window != nullptr)
+        vkGetDeviceQueue(m_VKDeviceLogical, m_VKQueuePresentIndex,  0, &m_VKQueuePresent);
+
+    // Create Vulkan Memory Allocator
+    // ----------------------
+
+    VmaVulkanFunctions vmaVulkanFunctions
+    {
+        .vkGetInstanceProcAddr = &vkGetInstanceProcAddr,
+        .vkGetDeviceProcAddr   = &vkGetDeviceProcAddr  
+    };
+
+    VmaAllocatorCreateInfo allocatorCreateInfo
+    {
+        .flags            = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT,
+        .vulkanApiVersion = VK_API_VERSION_1_2,
+        .physicalDevice   = m_VKDevicePhysical,
+        .device           = m_VKDeviceLogical,
+        .instance         = m_VKInstance,
+        .pVulkanFunctions = &vmaVulkanFunctions
+    };
+    vmaCreateAllocator(&allocatorCreateInfo, &m_VMAAllocator);
 
     // Command Pool
     // ---------------------
@@ -311,6 +334,8 @@ Device::~Device()
 {
     vkDeviceWaitIdle(m_VKDeviceLogical);
 
+    vmaDestroyAllocator(m_VMAAllocator);
+
     if (m_Window != nullptr)
         m_Window->ReleaseVulkanObjects(this);
 
@@ -343,6 +368,35 @@ void Device::CreateBuffers(const std::vector<Buffer*>& buffers)
 void Device::ReleaseBuffers(const std::vector<Buffer*>& buffers)
 {
     
+}
+
+void Device::CreateImages(const std::vector<Image*>& images)
+{
+    for (auto& image : images)
+    {
+        auto hr = vmaCreateImage(m_VMAAllocator, 
+                    &image->GetInfo()->image, 
+                    &image->GetInfo()->allocation, 
+                    &image->GetData()->image, 
+                    &image->GetData()->allocation, nullptr);
+
+        if (hr != VK_SUCCESS)
+            throw std::runtime_error("Failed to allocate image.");
+
+        // Patch in the created image.
+        image->GetInfo()->view.image = image->GetData()->image;
+
+        vkCreateImageView(m_VKDeviceLogical, &image->GetInfo()->view, nullptr, &image->GetData()->view);
+    }
+}
+
+void Device::ReleaseImages(const std::vector<Image*>& images)
+{
+    for (auto& image : images)
+    {
+        vmaDestroyImage(m_VMAAllocator, image->GetData()->image, image->GetData()->allocation);
+        vkDestroyImageView(m_VKDeviceLogical, image->GetData()->view, nullptr);
+    }
 }
 
 void Device::SetDefaultRenderState(VkCommandBuffer commandBuffer)
