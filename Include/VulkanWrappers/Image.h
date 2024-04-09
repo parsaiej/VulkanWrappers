@@ -34,15 +34,6 @@ namespace VulkanWrappers
         inline Info* GetInfo() { return &m_Info; }
         inline Data* GetData() { return &m_Data; }
 
-        // Enables an image to be mapped to CPU memory.
-        inline void SetMappingEnabled(bool enabled)
-        {
-            if (enabled)
-                m_Info.allocation.flags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
-            else
-                m_Info.allocation.flags &= ~VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
-        }
-
         static void TransferUnknownToWrite       (VkCommandBuffer commandBuffer, VkImage vkImage);
         static void TransferWriteToPresent       (VkCommandBuffer commandBuffer, VkImage vkImage);
         static void TransferWriteToSource        (VkCommandBuffer commandBuffer, VkImage vkImage);

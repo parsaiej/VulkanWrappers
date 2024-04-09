@@ -6,23 +6,42 @@
 namespace VulkanWrappers
 {
     class Device;
+    class Image;
 
     class Buffer
     {
+        struct Info
+        {
+            VkBufferCreateInfo      buffer;
+            VkBufferViewCreateInfo  view;
+            VmaAllocationCreateInfo allocation;
+        };
+
+        struct Data
+        {
+            VkBuffer      buffer;
+            VkBufferView  view;
+            VmaAllocation allocation;
+        };
+
     public:
+
+        Buffer() {}
         Buffer(VkDeviceSize             size, 
                VkBufferUsageFlags       useFlags, 
-               VkMemoryPropertyFlags    memFlags, 
-               VmaAllocationCreateFlags allocFlags = 0x0);
+               VmaAllocationCreateFlags memFlags);
 
         static void SetData(Device* device, Buffer* buffer, void* srcPtr, uint32_t size);
 
-    private:
-        VkBufferCreateInfo      m_VKBufferInfo;
-        VkBuffer                m_VKBuffer;
+        // Copies an image resource into a buffer resource. 
+        static void CopyImage(VkCommandBuffer cmd, Image* image, Buffer* buffer);
 
-        VmaAllocationCreateInfo m_VMAAllocationInfo;
-        VmaAllocation           m_VMAAllocation;
+        inline Info* GetInfo() { return &m_Info; }
+        inline Data* GetData() { return &m_Data; }
+
+    private:
+        Info m_Info;
+        Data m_Data;
     };
 }
 

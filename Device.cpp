@@ -53,21 +53,26 @@ Device::Device(Window* window)
         .apiVersion         = VK_API_VERSION_1_3
     };
 
-    // Sample GLFW for any extensions it needs. 
-    uint32_t extensionCount = 0;
-    const char** glfwExtensions;
-    glfwExtensions = glfwGetRequiredInstanceExtensions(&extensionCount);
-
     std::vector<const char*> enabledInstanceExtensions;
 
-    // Copy GLFW extensions. 
-    for (uint32_t i = 0; i < extensionCount; ++i)
-        enabledInstanceExtensions.push_back(glfwExtensions[i]);
+    if (window != nullptr)
+    {
+        // Sample GLFW for any extensions it needs. 
+        uint32_t extensionCount = 0;
+        const char** glfwExtensions;
+        glfwExtensions = glfwGetRequiredInstanceExtensions(&extensionCount);
+
+        // Copy GLFW extensions. 
+        for (uint32_t i = 0; i < extensionCount; ++i)
+            enabledInstanceExtensions.push_back(glfwExtensions[i]);
+    }
 
 #if __APPLE__
     // MoltenVK compatibility. 
     enabledInstanceExtensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-    enabledInstanceExtensions.push_back(VK_MVK_MACOS_SURFACE_EXTENSION_NAME);
+
+    if (window != nullptr)
+        enabledInstanceExtensions.push_back(VK_MVK_MACOS_SURFACE_EXTENSION_NAME);
 #endif
 
     std::vector<const char*> enabledLayers;
@@ -180,7 +185,9 @@ Device::Device(Window* window)
 
     std::vector<const char*> enabledExtensions;
     {
-        enabledExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+        if (window != nullptr)
+            enabledExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+
         enabledExtensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
         enabledExtensions.push_back(VK_EXT_SHADER_OBJECT_EXTENSION_NAME);
         enabledExtensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
@@ -348,26 +355,48 @@ void Device::CreateShaders(const std::vector<Shader*>& shaders)
     for (auto& shader : shaders)
     {
         // TODO: Do this in one native call. 
-        Device::vkCreateShadersEXT(m_VKDeviceLogical, 1u, shader->GetCreateInfo(), nullptr, shader->GetPrimitivePtr());
-
-        shader->ReleaseByteCode();
+        Device::vkCreateShadersEXT(m_VKDeviceLogical, 1u, &shader->GetInfo()->shader, nullptr, &shader->GetData()->shader);
     }
 }
 
 void Device::ReleaseShaders(const std::vector<Shader*>& shaders)
 {
     for (auto& shader : shaders)
-        Device::vkDestroyShaderEXT(m_VKDeviceLogical, *shader->GetPrimitivePtr(), nullptr);
+    {
+        free(shader->GetData()->spirvByteCode);
+        Device::vkDestroyShaderEXT(m_VKDeviceLogical, shader->GetData()->shader, nullptr);
+    }
 }
 
 void Device::CreateBuffers(const std::vector<Buffer*>& buffers)
 {
+    for (auto& buffer : buffers)
+    {
+        auto hr = vmaCreateBuffer(m_VMAAllocator, 
+                            &buffer->GetInfo()->buffer, 
+                            &buffer->GetInfo()->allocation, 
+                            &buffer->GetData()->buffer,
+                            &buffer->GetData()->allocation,
+                            nullptr);
+
+        if (hr != VK_SUCCESS)
+            throw std::runtime_error("Failed to allocate buffer.");
+
+        // Patch in the created buffer.
+        buffer->GetInfo()->view.buffer = buffer->GetData()->buffer;
+
+        vkCreateBufferView(m_VKDeviceLogical, &buffer->GetInfo()->view, nullptr, &buffer->GetData()->view);
+    }
 
 }
 
 void Device::ReleaseBuffers(const std::vector<Buffer*>& buffers)
 {
-    
+    for (auto& buffer : buffers)
+    {
+        vmaDestroyBuffer(m_VMAAllocator, buffer->GetData()->buffer, buffer->GetData()->allocation);
+        vkDestroyBufferView(m_VKDeviceLogical, buffer->GetData()->view, nullptr);
+    }
 }
 
 void Device::CreateImages(const std::vector<Image*>& images)

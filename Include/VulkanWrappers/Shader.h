@@ -12,23 +12,30 @@ namespace VulkanWrappers
 
     class Shader
     {
+        struct Info
+        {
+            VkShaderCreateInfoEXT shader;
+            VkShaderStageFlagBits stages;
+        };
+
+        struct Data
+        {
+            VkShaderEXT shader;
+            void*       spirvByteCode;
+        };
+
     public:
         Shader() {}
         Shader(const char* spirvFilePath, VkShaderStageFlagBits stage, VkShaderStageFlags nextStage = 0x0);
 
-        static void Bind(VkCommandBuffer commandBuffer, const Shader& shader);
+        static void Bind(VkCommandBuffer commandBuffer, Shader& shader);
 
-        inline void ReleaseByteCode()                 { free(m_SPIRVByteCode); }
-        inline VkShaderCreateInfoEXT* GetCreateInfo() { return &m_VKShaderCreateInfo; }
-        inline VkShaderEXT* GetPrimitivePtr()         { return &m_VKShader; }
-        inline VkShaderEXT  GetPrimitive() const      { return m_VKShader;  }
-        inline VkShaderStageFlagBits GetStage() const { return m_VKStageFlagBits; }
+        inline Info* GetInfo() { return &m_Info; }
+        inline Data* GetData() { return &m_Data; }
 
     private:
-        VkShaderCreateInfoEXT m_VKShaderCreateInfo;
-        VkShaderStageFlagBits m_VKStageFlagBits;
-        VkShaderEXT           m_VKShader;
-        void*                 m_SPIRVByteCode;
+        Data m_Data;
+        Info m_Info;
     };
 }
 
