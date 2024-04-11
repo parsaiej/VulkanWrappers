@@ -1,16 +1,19 @@
 #include <VulkanWrappers/Window.h>
 #include <VulkanWrappers/Device.h>
 
+#include "algorithm"
 #if __APPLE__
     // Native-access to macOS cocoa window.
     #define GLFW_EXPOSE_NATIVE_COCOA
     
     // Objective-C wrapper to bind a KHR surface to native macOS window. 
     #include "MetalUtility.h"
+#else
+    #define GLFW_EXPOSE_NATIVE_WIN32
+    #include <vulkan/vulkan_win32.h>
 #endif
 
 #include <GLFW/glfw3.h>
-
 // In case of macOS, will include the cocoa native implementation.
 #include <GLFW/glfw3native.h>
 
@@ -137,7 +140,28 @@ void Window::CreateVulkanSurface(const Device* device)
         if (vkCreateMacOSSurfaceMVK(device->GetInstance(), &createInfo, nullptr, &m_VKSurface)!= VK_SUCCESS) 
             throw std::runtime_error("failed to create surface.");
     }
+#else
+	VkWin32SurfaceCreateInfoKHR createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    createInfo.pNext = nullptr;
+    createInfo.flags = 0;
+    createInfo.hwnd = glfwGetWin32Window(m_GLFWWindow);
+    // .pView = (m_GLFWWindow)
+        
+    PFN_vkCreateWin32SurfaceKHR vkCreateWin32SurfaceKHR;
+    
+    vkCreateWin32SurfaceKHR = (PFN_vkCreateWin32SurfaceKHR )vkGetInstanceProcAddr(device->GetInstance(), "vkCreateWin32SurfaceKHR");
+
+    if (!vkCreateWin32SurfaceKHR) 
+    {
+        // Note: This call will fail unless we add VK_MVK_MACOS_SURFACE_EXTENSION_NAME extension. 
+        throw std::runtime_error("Unabled to get pointer to function: VkWin32SurfaceCreateInfoKHR");
+    }
+
+    if (vkCreateWin32SurfaceKHR(device->GetInstance(), &createInfo, nullptr, &m_VKSurface)!= VK_SUCCESS) 
+        throw std::runtime_error("failed to create surface.");
 #endif
+
 }
 
 void Window::CreateVulkanSwapchain(const Device* device)
@@ -158,25 +182,23 @@ void Window::CreateVulkanSwapchain(const Device* device)
     if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
         imageCount = swapChainSupport.capabilities.maxImageCount;
 
-    VkSwapchainCreateInfoKHR createInfo =
-    {
-        .sType                 = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-        .surface               = m_VKSurface,
-        .minImageCount         = imageCount,
-        .imageExtent           = m_VKSurfaceExtent,
-        .imageArrayLayers      = 1,
-        .imageUsage            = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-        .preTransform          = swapChainSupport.capabilities.currentTransform,
-        .compositeAlpha        = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-        .presentMode           = ChooseSwapPresentMode(swapChainSupport),
-        .clipped               = VK_TRUE,
-        .oldSwapchain          = VK_NULL_HANDLE,
-        .imageFormat           = m_VKSurfaceFormat.format,
-        .imageColorSpace       = m_VKSurfaceFormat.colorSpace,
-        .imageSharingMode      = VK_SHARING_MODE_EXCLUSIVE,
-        .queueFamilyIndexCount = 0,
-        .pQueueFamilyIndices   = NULL
-    };
+    VkSwapchainCreateInfoKHR createInfo = {};
+    createInfo.sType                 = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    createInfo.surface               = m_VKSurface;
+    createInfo.minImageCount         = imageCount;
+    createInfo.imageExtent           = m_VKSurfaceExtent;
+    createInfo.imageArrayLayers      = 1;
+    createInfo.imageUsage            = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    createInfo.preTransform          = swapChainSupport.capabilities.currentTransform;
+    createInfo.compositeAlpha        = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    createInfo.presentMode           = ChooseSwapPresentMode(swapChainSupport);
+    createInfo.clipped               = VK_TRUE;
+    createInfo.oldSwapchain          = VK_NULL_HANDLE;
+    createInfo.imageFormat           = m_VKSurfaceFormat.format;
+    createInfo.imageColorSpace       = m_VKSurfaceFormat.colorSpace;
+    createInfo.imageSharingMode      = VK_SHARING_MODE_EXCLUSIVE;
+    createInfo.queueFamilyIndexCount = 0;
+    createInfo.pQueueFamilyIndices   = NULL;
 
     if(vkCreateSwapchainKHR(device->GetLogical(), &createInfo, NULL, &m_VKSwapchain) != VK_SUCCESS)
         throw std::runtime_error("failed to create swap chain.");
@@ -198,24 +220,22 @@ void Window::CreateVulkanSwapchain(const Device* device)
 
         // Swapchain image view.
 
-        VkImageViewCreateInfo backBufferViewInfo =
-        {
-            .sType        = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-            .image        = m_Frames[i].backBuffer,
-            .viewType     = VK_IMAGE_VIEW_TYPE_2D,
-            .format       = m_VKSurfaceFormat.format,
+        VkImageViewCreateInfo backBufferViewInfo = {};
+        backBufferViewInfo.sType        = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        backBufferViewInfo.image        = m_Frames[i].backBuffer;
+        backBufferViewInfo.viewType     = VK_IMAGE_VIEW_TYPE_2D;
+        backBufferViewInfo.format       = m_VKSurfaceFormat.format;
 
-            .components.r = VK_COMPONENT_SWIZZLE_IDENTITY,
-            .components.g = VK_COMPONENT_SWIZZLE_IDENTITY,
-            .components.b = VK_COMPONENT_SWIZZLE_IDENTITY,
-            .components.a = VK_COMPONENT_SWIZZLE_IDENTITY,
+        backBufferViewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        backBufferViewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        backBufferViewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        backBufferViewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
 
-            .subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
-            .subresourceRange.baseMipLevel   = 0,
-            .subresourceRange.levelCount     = 1,
-            .subresourceRange.baseArrayLayer = 0,
-            .subresourceRange.layerCount     = 1
-        };
+        backBufferViewInfo.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        backBufferViewInfo.subresourceRange.baseMipLevel   = 0;
+        backBufferViewInfo.subresourceRange.levelCount     = 1;
+        backBufferViewInfo.subresourceRange.baseArrayLayer = 0;
+        backBufferViewInfo.subresourceRange.layerCount     = 1;
 
         if (vkCreateImageView(device->GetLogical(), &backBufferViewInfo, NULL, &m_Frames[i].backBufferView) != VK_SUCCESS)
             throw std::runtime_error("failed to create swap chain image view.");
@@ -225,20 +245,16 @@ void Window::CreateVulkanSwapchain(const Device* device)
     {
         // Synchronization primitives (graphics).
 
-        VkSemaphoreCreateInfo binarySemaphoreInfo
-        {
-            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
-        };
+        VkSemaphoreCreateInfo binarySemaphoreInfo = {};
+        binarySemaphoreInfo .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
         vkCreateSemaphore(device->GetLogical(), &binarySemaphoreInfo, nullptr, &m_GraphicsQueueCompleteSemaphores[i]);
         vkCreateSemaphore(device->GetLogical(), &binarySemaphoreInfo, nullptr, &m_ImageAcquireSemaphores[i]);
 
-        VkFenceCreateInfo fenceInfo
-        {
-            .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-            .flags = VK_FENCE_CREATE_SIGNALED_BIT,
-            .pNext = nullptr
-        };
+        VkFenceCreateInfo fenceInfo = {};
+        fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fenceInfo .flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        fenceInfo.pNext = nullptr;
 
         vkCreateFence(device->GetLogical(), &fenceInfo, nullptr, &m_GraphicsQueueCompleteFences[i]);
 
@@ -272,12 +288,10 @@ bool Window::NextFrame(const Device* device, Frame* frame)
     vkResetCommandBuffer(frame->commandBuffer, 0x0);
 
     // Enable the command buffer into a recording state. 
-    VkCommandBufferBeginInfo commandBegin
-    {
-        .sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags            = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-        .pInheritanceInfo = nullptr
-    };
+    VkCommandBufferBeginInfo commandBegin = {};
+    commandBegin.sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    commandBegin.flags            = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    commandBegin.pInheritanceInfo = nullptr;
 
     vkBeginCommandBuffer(frame->commandBuffer, &commandBegin);
 
@@ -295,33 +309,30 @@ void Window::SubmitFrame(Device* device, const Frame* frame)
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
     };
 
-    VkSubmitInfo submitInfo
-    {
-        .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .commandBufferCount   = 1u,
-        .pCommandBuffers      = &frame->commandBuffer,
-        .waitSemaphoreCount   = 1u,
-        .pWaitSemaphores      = &m_ImageAcquireSemaphores[m_FrameIndex],
-        .pWaitDstStageMask    = backBufferWaitStage,
-        .signalSemaphoreCount = 1u,
-        .pSignalSemaphores    = &m_GraphicsQueueCompleteSemaphores[m_FrameIndex]
-    };
+    VkSubmitInfo submitInfo = {};
+
+    submitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount   = 1u;
+    submitInfo.pCommandBuffers      = &frame->commandBuffer;
+    submitInfo.waitSemaphoreCount   = 1u;
+    submitInfo.pWaitSemaphores      = &m_ImageAcquireSemaphores[m_FrameIndex];
+    submitInfo.pWaitDstStageMask    = backBufferWaitStage;
+    submitInfo.signalSemaphoreCount = 1u;
+    submitInfo.pSignalSemaphores    = &m_GraphicsQueueCompleteSemaphores[m_FrameIndex];
 
     // Submit the graphics queue and signal both the presentation semaphore and the next frame's fence when done. 
     vkQueueSubmit(device->GetGraphicsQueue(), 1u, &submitInfo, m_GraphicsQueueCompleteFences[m_FrameIndex]);
 
     // Present.
 
-    VkPresentInfoKHR presentInfo
-    {
-        .sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-        .swapchainCount     = 1u,
-        .pSwapchains        = &m_VKSwapchain,
-        .pImageIndices      = &m_VKSwapchainImageIndex,
-        .pResults           = nullptr,
-        .waitSemaphoreCount = 1u,
-        .pWaitSemaphores    = &m_GraphicsQueueCompleteSemaphores[m_FrameIndex]
-    };
+    VkPresentInfoKHR presentInfo = {};
+    presentInfo.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.swapchainCount     = 1u;
+    presentInfo.pSwapchains        = &m_VKSwapchain;
+    presentInfo.pImageIndices      = &m_VKSwapchainImageIndex;
+    presentInfo.pResults           = nullptr;
+    presentInfo.waitSemaphoreCount = 1u;
+    presentInfo.pWaitSemaphores    = &m_GraphicsQueueCompleteSemaphores[m_FrameIndex];
 
     vkQueuePresentKHR(device->GetPresentQueue(), &presentInfo);
 

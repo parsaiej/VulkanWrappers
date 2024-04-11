@@ -42,28 +42,25 @@ Shader::Shader(const char* spirvFilePath, VkShaderStageFlagBits stage, VkShaderS
 
     // VK Shader Object Info
     // -------------------
+    m_Info = {};
+    m_Info.stages = stage;
 
-    m_Info = 
-    {
-        .stages = stage,
-        .shader = 
-        {
-	        .sType                  = VK_STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT,
-	        .pNext                  = nullptr,
-	        .flags                  = 0,
-	        .stage                  = stage,
-	        .nextStage              = nextStage,
-	        .codeType               = VK_SHADER_CODE_TYPE_SPIRV_EXT,
-	        .codeSize               = (size_t)byteCodeSize,
-	        .pCode                  = m_Data.spirvByteCode,
-	        .pName                  = "main",
-	        .setLayoutCount         = 0,
-	        .pSetLayouts            = nullptr,
-	        .pushConstantRangeCount = 0,
-	        .pPushConstantRanges    = nullptr,
-	        .pSpecializationInfo    = nullptr
-        }
-    };
+    m_Info.shader = {};
+    m_Info.shader.sType                  = VK_STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT;
+    m_Info.shader.pNext                  = nullptr;
+    m_Info.shader.flags                  = 0;
+    m_Info.shader.stage                  = stage;
+    m_Info.shader.nextStage              = nextStage;
+    m_Info.shader.codeType               = VK_SHADER_CODE_TYPE_SPIRV_EXT;
+    m_Info.shader.codeSize               = (size_t)byteCodeSize;
+    m_Info.shader.pCode                  = m_Data.spirvByteCode;
+    m_Info.shader.pName                  = "main";
+    m_Info.shader.setLayoutCount         = 0;
+    m_Info.shader.pSetLayouts            = nullptr;
+    m_Info.shader.pushConstantRangeCount = 0;
+    m_Info.shader.pPushConstantRanges    = nullptr;
+    m_Info.shader.pSpecializationInfo    = nullptr;
+
 }
 
 void Shader::Bind(VkCommandBuffer commandBuffer, Shader& shader)

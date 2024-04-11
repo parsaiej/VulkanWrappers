@@ -43,16 +43,13 @@ Device::Device(Window* window)
 {
     // Create Vulkan Instance
 
-    VkApplicationInfo appInfo =
-    {
-        .sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-        .pApplicationName   = "Vulkan Instance",
-        .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
-        .pEngineName        = "No Engine",
-        .engineVersion      = VK_MAKE_VERSION(1, 0, 0),
-        .apiVersion         = VK_API_VERSION_1_3
-    };
-
+    VkApplicationInfo appInfo  = {};
+    appInfo.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    appInfo.pApplicationName   = "Vulkan Instance";
+    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.pEngineName        = "No Engine";
+    appInfo.engineVersion      = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.apiVersion         = VK_API_VERSION_1_3;
     std::vector<const char*> enabledInstanceExtensions;
 
     if (window != nullptr)
@@ -84,19 +81,18 @@ Device::Device(Window* window)
 #if __APPLE__
     // Required in order to create a logical device with shader object extension that doesn't natively support it.
     enabledLayers.push_back("VK_LAYER_KHRONOS_shader_object");
+#else
+    VkInstanceCreateInfo instanceCreateInfo    = {};
+    instanceCreateInfo.sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    instanceCreateInfo.pApplicationInfo        = &appInfo;
+    instanceCreateInfo.enabledExtensionCount   = (uint32_t)enabledInstanceExtensions.size();
+    instanceCreateInfo.ppEnabledExtensionNames = enabledInstanceExtensions.data();
+    instanceCreateInfo.enabledLayerCount       = (uint32_t)enabledLayers.size();
+    instanceCreateInfo.ppEnabledLayerNames     = enabledLayers.data();
 #endif
-
-    VkInstanceCreateInfo instanceCreateInfo =
-    {
-        .sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-        .pApplicationInfo        = &appInfo,
-        .enabledExtensionCount   = (uint32_t)enabledInstanceExtensions.size(),
-        .ppEnabledExtensionNames = enabledInstanceExtensions.data(),
-        .enabledLayerCount       = (uint32_t)enabledLayers.size(),
-        .ppEnabledLayerNames     = enabledLayers.data(),
     #if __APPLE__
         // For MoltenVK. 
-        .flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR
+        instanceCreateInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
     #endif
     };
 
@@ -172,13 +168,11 @@ Device::Device(Window* window)
         
     float queuePriority = 1.0f;
 
-    VkDeviceQueueCreateInfo queueCreateInfo =
-    {
-        .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-        .queueFamilyIndex = m_VKQueueGraphicsIndex,
-        .queueCount       = 1,
-        .pQueuePriorities = &queuePriority
-    };
+    VkDeviceQueueCreateInfo queueCreateInfo ={};
+    queueCreateInfo.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.queueFamilyIndex = m_VKQueueGraphicsIndex;
+    queueCreateInfo.queueCount       = 1;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
 
     // Specify the physical features to use. 
     VkPhysicalDeviceFeatures deviceFeatures = {};
@@ -201,59 +195,47 @@ Device::Device(Window* window)
 
     // Setup for VK_EXT_extended_dynamic_state2
 
-    VkPhysicalDeviceExtendedDynamicState2FeaturesEXT dynamicState2 = 
-    {
-        .sType                 = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_2_FEATURES_EXT,
-        .extendedDynamicState2 = VK_TRUE
-    };
+    VkPhysicalDeviceExtendedDynamicState2FeaturesEXT dynamicState2 = {};
+    dynamicState2.sType                 = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_2_FEATURES_EXT;
+    dynamicState2.extendedDynamicState2 = VK_TRUE;
 
     // Setup for VK_KHR_synchronization2
 
-    VkPhysicalDeviceSynchronization2FeaturesKHR synchronization2Feature =
-    {
-        .sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES_KHR,
-        .pNext            = &dynamicState2,
-        .synchronization2 = VK_TRUE
-    };
+    VkPhysicalDeviceSynchronization2FeaturesKHR synchronization2Feature = {};
+    synchronization2Feature.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES_KHR;
+    synchronization2Feature.pNext            = &dynamicState2;
+    synchronization2Feature.synchronization2 = VK_TRUE;
 
     // Setup for VK_EXT_shader_object
 
-    VkPhysicalDeviceShaderObjectFeaturesEXT shaderObjectFeature = 
-    {
-        .sType        = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_OBJECT_FEATURES_EXT,
-        .pNext        = &synchronization2Feature,
-        .shaderObject = VK_TRUE
-    };
+    VkPhysicalDeviceShaderObjectFeaturesEXT shaderObjectFeature = {};
+    shaderObjectFeature.sType        = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_OBJECT_FEATURES_EXT;
+    shaderObjectFeature.pNext        = &synchronization2Feature;
+    shaderObjectFeature.shaderObject = VK_TRUE;
 
     // Setup for VK_KHR_dynamic_rendering
 
-    VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature =
-    {
-        .sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
-        .pNext            = &shaderObjectFeature,
-        .dynamicRendering = VK_TRUE
-    };
+    VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature ={};
+    dynamicRenderingFeature.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR;
+    dynamicRenderingFeature.pNext            = &shaderObjectFeature;
+    dynamicRenderingFeature.dynamicRendering = VK_TRUE;
 
     // Setup to enable timeline semaphores.
 
-    VkPhysicalDeviceVulkan12Features features12 = 
-    {
-        .sType             = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
-        .pNext             = &dynamicRenderingFeature,
-        .timelineSemaphore = VK_TRUE
-    };
+    VkPhysicalDeviceVulkan12Features features12 =  {};
+    features12.sType             = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    features12.pNext             = &dynamicRenderingFeature;
+    features12.timelineSemaphore = VK_TRUE;
     
-    VkDeviceCreateInfo deviceCreateInfo = 
-    {
-        .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-        .pNext                   = &features12,
-        .pQueueCreateInfos       = &queueCreateInfo,
-        .queueCreateInfoCount    = 1,
-        .pEnabledFeatures        = &deviceFeatures,
-        .ppEnabledExtensionNames = enabledExtensions.data(),
-        .enabledExtensionCount   = (uint32_t)enabledExtensions.size(),
-        .enabledLayerCount       = 0
-    };
+    VkDeviceCreateInfo deviceCreateInfo = {};
+    deviceCreateInfo.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    deviceCreateInfo.pNext                   = &features12;
+    deviceCreateInfo.pQueueCreateInfos       = &queueCreateInfo;
+    deviceCreateInfo.queueCreateInfoCount    = 1;
+    deviceCreateInfo.pEnabledFeatures        = &deviceFeatures;
+    deviceCreateInfo.ppEnabledExtensionNames = enabledExtensions.data();
+    deviceCreateInfo.enabledExtensionCount   = (uint32_t)enabledExtensions.size();
+    deviceCreateInfo.enabledLayerCount       = 0;
 
     if (vkCreateDevice(m_VKDevicePhysical, &deviceCreateInfo, nullptr, &m_VKDeviceLogical) != VK_SUCCESS) 
         throw std::runtime_error("failed to create logical device.");
@@ -269,32 +251,26 @@ Device::Device(Window* window)
     // Create Vulkan Memory Allocator
     // ----------------------
 
-    VmaVulkanFunctions vmaVulkanFunctions
-    {
-        .vkGetInstanceProcAddr = &vkGetInstanceProcAddr,
-        .vkGetDeviceProcAddr   = &vkGetDeviceProcAddr  
-    };
+    VmaVulkanFunctions vmaVulkanFunctions = {};
+    vmaVulkanFunctions.vkGetInstanceProcAddr = &vkGetInstanceProcAddr;
+    vmaVulkanFunctions.vkGetDeviceProcAddr   = &vkGetDeviceProcAddr;
 
-    VmaAllocatorCreateInfo allocatorCreateInfo
-    {
-        .flags            = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT,
-        .vulkanApiVersion = VK_API_VERSION_1_2,
-        .physicalDevice   = m_VKDevicePhysical,
-        .device           = m_VKDeviceLogical,
-        .instance         = m_VKInstance,
-        .pVulkanFunctions = &vmaVulkanFunctions
-    };
+    VmaAllocatorCreateInfo allocatorCreateInfo = {};
+    allocatorCreateInfo.flags            = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
+    allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_2;
+    allocatorCreateInfo.physicalDevice   = m_VKDevicePhysical;
+    allocatorCreateInfo.device           = m_VKDeviceLogical;
+    allocatorCreateInfo.instance         = m_VKInstance;
+    allocatorCreateInfo.pVulkanFunctions = &vmaVulkanFunctions;
     vmaCreateAllocator(&allocatorCreateInfo, &m_VMAAllocator);
 
     // Command Pool
     // ---------------------
 
-    VkCommandPoolCreateInfo commandPoolInfo
-    {
-        .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-        .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = m_VKQueueGraphicsIndex
-    };
+    VkCommandPoolCreateInfo commandPoolInfo = {};
+    commandPoolInfo.sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    commandPoolInfo.flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    commandPoolInfo.queueFamilyIndex = m_VKQueueGraphicsIndex;
 
     if (vkCreateCommandPool(m_VKDeviceLogical, &commandPoolInfo, nullptr, &m_VKCommandPool) != VK_SUCCESS)
         throw std::runtime_error("failed to create command pool.");

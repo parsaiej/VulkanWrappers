@@ -39,13 +39,11 @@ namespace VulkanWrappers
 
         inline void CreateCommandBuffer(VkCommandBuffer* commandBuffer, VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY) const
         { 
-            VkCommandBufferAllocateInfo commandAllocateInfo
-            {
-                .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-                .commandPool        = m_VKCommandPool,
-                .level              = level,
-                .commandBufferCount = 1
-            };
+            VkCommandBufferAllocateInfo commandAllocateInfo = {};
+            commandAllocateInfo.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+            commandAllocateInfo.commandPool        = m_VKCommandPool;
+            commandAllocateInfo.level              = level;
+            commandAllocateInfo.commandBufferCount = 1;
 
             if (vkAllocateCommandBuffers(m_VKDeviceLogical, &commandAllocateInfo, commandBuffer) != VK_SUCCESS)
                 throw std::runtime_error("failed to allocate command buffer.");
