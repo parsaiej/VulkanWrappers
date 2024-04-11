@@ -94,7 +94,7 @@ Device::Device(Window* window)
         // For MoltenVK. 
         instanceCreateInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
     #endif
-    };
+
 
     if (vkCreateInstance(&instanceCreateInfo, nullptr, &m_VKInstance) != VK_SUCCESS) 
         throw std::runtime_error("failed to create instance!");
