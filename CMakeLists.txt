@@ -46,7 +46,9 @@ add_library(${WRAPPERS_NAME} SHARED
 
 target_include_directories(${WRAPPERS_NAME} PRIVATE ${GLFW_INCLUDE_DIRS})
 target_include_directories(${WRAPPERS_NAME} PRIVATE ${Vulkan_INCLUDE_DIRS})
-target_include_directories(${WRAPPERS_NAME} PRIVATE "MetalUtility/")
+if(APPLE) 
+    target_include_directories(${WRAPPERS_NAME} PRIVATE "MetalUtility/")
+endif()
 target_include_directories(${WRAPPERS_NAME} PRIVATE "Include/")
 
 # Link
@@ -54,5 +56,7 @@ target_include_directories(${WRAPPERS_NAME} PRIVATE "Include/")
 
 target_link_libraries(${WRAPPERS_NAME} PRIVATE ${Vulkan_LIBRARIES})
 target_link_libraries(${WRAPPERS_NAME} PRIVATE glfw)
-target_link_libraries(${WRAPPERS_NAME} PRIVATE MetalUtility)
+if(APPLE)
+    target_link_libraries(${WRAPPERS_NAME} PRIVATE MetalUtility)
+endif()
 target_link_libraries(${WRAPPERS_NAME} PRIVATE GPUOpen::VulkanMemoryAllocator)
