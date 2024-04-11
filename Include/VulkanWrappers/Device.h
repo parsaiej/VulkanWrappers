@@ -9,7 +9,7 @@
 #include <vulkan/vulkan.h>
 #include <VulkanWrappers/VmaUsage.h>
 #include <vector>
-
+#include "stdexcept"
 // Extension Functions
 // -----------------------
 
