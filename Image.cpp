@@ -81,7 +81,11 @@ static void Transition(TransitionArgs args)
     dependencyInfo.imageMemoryBarrierCount = 1u;
     dependencyInfo.pImageMemoryBarriers    = &imageBarrier;
 
+#if __APPLE__
     Device::vkCmdPipelineBarrier2KHR(args.cmd, &dependencyInfo);
+#else
+    vkCmdPipelineBarrier2(args.cmd, &dependencyInfo);
+#endif
 }
 
 void Image::TransferUnknownToWrite(VkCommandBuffer commandBuffer, VkImage vkImage)

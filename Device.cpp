@@ -165,11 +165,21 @@ Device::Device(Window* window)
         
     float queuePriority = 1.0f;
 
-    VkDeviceQueueCreateInfo queueCreateInfo ={};
+    VkDeviceQueueCreateInfo queueCreateInfo = {};
     queueCreateInfo.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     queueCreateInfo.queueFamilyIndex = m_VKQueueGraphicsIndex;
     queueCreateInfo.queueCount       = 1;
     queueCreateInfo.pQueuePriorities = &queuePriority;
+
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+
+    queueCreateInfos.push_back(queueCreateInfo);
+
+    if (m_VKQueueGraphicsIndex != m_VKQueuePresentIndex)
+    {
+        queueCreateInfo.queueFamilyIndex = m_VKQueuePresentIndex;
+        queueCreateInfos.push_back(queueCreateInfo);
+    }
 
     // Specify the physical features to use. 
     VkPhysicalDeviceFeatures deviceFeatures = {};
@@ -227,8 +237,8 @@ Device::Device(Window* window)
     VkDeviceCreateInfo deviceCreateInfo = {};
     deviceCreateInfo.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     deviceCreateInfo.pNext                   = &features12;
-    deviceCreateInfo.pQueueCreateInfos       = &queueCreateInfo;
-    deviceCreateInfo.queueCreateInfoCount    = 1;
+    deviceCreateInfo.pQueueCreateInfos       = queueCreateInfos.data();
+    deviceCreateInfo.queueCreateInfoCount    = (uint32_t)queueCreateInfos.size();
     deviceCreateInfo.pEnabledFeatures        = &deviceFeatures;
     deviceCreateInfo.ppEnabledExtensionNames = enabledExtensions.data();
     deviceCreateInfo.enabledExtensionCount   = (uint32_t)enabledExtensions.size();
