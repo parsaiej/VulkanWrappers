@@ -156,9 +156,6 @@ Device::Device(Window* window)
     {
         if (m_VKQueueGraphicsIndex == UINT_MAX || m_VKQueuePresentIndex == UINT_MAX)
             throw std::runtime_error("no graphics or present queue for the device.");
-
-        if (m_VKQueueGraphicsIndex != m_VKQueuePresentIndex)
-            throw std::runtime_error("no support for different graphics and present queue.");
     }
     else
     {
