@@ -13,30 +13,16 @@ using namespace VulkanWrappers;
 #define DECLARE_VK_FUNC(func) PFN_##func Device::func = nullptr;
 #define GET_VK_FUNC(func) Device::func = reinterpret_cast<PFN_##func> (vkGetDeviceProcAddr(m_VKDeviceLogical, #func)); assert(func != nullptr);
 
-DECLARE_VK_FUNC(vkCmdBeginRenderingKHR);
-DECLARE_VK_FUNC(vkCmdEndRenderingKHR);
-DECLARE_VK_FUNC(vkCmdPipelineBarrier2KHR);
 DECLARE_VK_FUNC(vkCreateShadersEXT);
 DECLARE_VK_FUNC(vkDestroyShaderEXT);
 DECLARE_VK_FUNC(vkCmdBindShadersEXT);
-DECLARE_VK_FUNC(vkCmdSetPrimitiveTopologyEXT);
-DECLARE_VK_FUNC(vkCmdSetColorWriteMaskEXT);
-DECLARE_VK_FUNC(vkCmdSetPrimitiveRestartEnableEXT);
-DECLARE_VK_FUNC(vkCmdSetColorBlendEnableEXT);
-DECLARE_VK_FUNC(vkCmdSetRasterizerDiscardEnableEXT);
-DECLARE_VK_FUNC(vkCmdSetAlphaToCoverageEnableEXT);
-DECLARE_VK_FUNC(vkCmdSetPolygonModeEXT);
-DECLARE_VK_FUNC(vkCmdSetStencilTestEnableEXT);
-DECLARE_VK_FUNC(vkCmdSetDepthTestEnableEXT);
-DECLARE_VK_FUNC(vkCmdSetColorBlendEquationEXT);
-DECLARE_VK_FUNC(vkCmdSetCullModeEXT);
-DECLARE_VK_FUNC(vkCmdSetDepthBiasEnableEXT);
-DECLARE_VK_FUNC(vkCmdSetDepthWriteEnableEXT);
-DECLARE_VK_FUNC(vkCmdSetFrontFaceEXT);
-DECLARE_VK_FUNC(vkCmdSetViewportWithCountEXT);
-DECLARE_VK_FUNC(vkCmdSetScissorWithCountEXT);
 DECLARE_VK_FUNC(vkCmdSetRasterizationSamplesEXT);
 DECLARE_VK_FUNC(vkCmdSetSampleMaskEXT);
+DECLARE_VK_FUNC(vkCmdSetAlphaToCoverageEnableEXT);
+DECLARE_VK_FUNC(vkCmdSetPolygonModeEXT);
+DECLARE_VK_FUNC(vkCmdSetColorBlendEnableEXT);
+DECLARE_VK_FUNC(vkCmdSetColorWriteMaskEXT);
+DECLARE_VK_FUNC(vkCmdSetColorBlendEquationEXT);
 
 Device::Device(Window* window)
     : m_Window(window)
@@ -290,34 +276,17 @@ Device::Device(Window* window)
 
     // Extension function pointers
     // ---------------------
-
-    if (Device::vkCmdBeginRenderingKHR != nullptr)
-        return;
-
-    GET_VK_FUNC(vkCmdBeginRenderingKHR);
-    GET_VK_FUNC(vkCmdEndRenderingKHR);
-    GET_VK_FUNC(vkCmdPipelineBarrier2KHR);
+    
     GET_VK_FUNC(vkCmdBindShadersEXT);
-    GET_VK_FUNC(vkCmdSetPrimitiveTopologyEXT);
     GET_VK_FUNC(vkCreateShadersEXT);
     GET_VK_FUNC(vkDestroyShaderEXT);
-    GET_VK_FUNC(vkCmdSetColorWriteMaskEXT);
-    GET_VK_FUNC(vkCmdSetPrimitiveRestartEnableEXT);
-    GET_VK_FUNC(vkCmdSetColorBlendEnableEXT);
-    GET_VK_FUNC(vkCmdSetRasterizerDiscardEnableEXT);
-    GET_VK_FUNC(vkCmdSetAlphaToCoverageEnableEXT);
-    GET_VK_FUNC(vkCmdSetPolygonModeEXT);
-    GET_VK_FUNC(vkCmdSetStencilTestEnableEXT);
-    GET_VK_FUNC(vkCmdSetDepthTestEnableEXT);
-    GET_VK_FUNC(vkCmdSetColorBlendEquationEXT);
-    GET_VK_FUNC(vkCmdSetCullModeEXT);
-    GET_VK_FUNC(vkCmdSetDepthBiasEnableEXT);
-    GET_VK_FUNC(vkCmdSetDepthWriteEnableEXT);
-    GET_VK_FUNC(vkCmdSetFrontFaceEXT);
-    GET_VK_FUNC(vkCmdSetViewportWithCountEXT);
-    GET_VK_FUNC(vkCmdSetScissorWithCountEXT);
     GET_VK_FUNC(vkCmdSetRasterizationSamplesEXT);
     GET_VK_FUNC(vkCmdSetSampleMaskEXT);
+    GET_VK_FUNC(vkCmdSetAlphaToCoverageEnableEXT);
+    GET_VK_FUNC(vkCmdSetPolygonModeEXT);
+    GET_VK_FUNC(vkCmdSetColorBlendEnableEXT);  
+    GET_VK_FUNC(vkCmdSetColorWriteMaskEXT);
+    GET_VK_FUNC(vkCmdSetColorBlendEquationEXT);
 }
 
 Device::~Device()
@@ -338,7 +307,7 @@ void Device::CreateShaders(const std::vector<Shader*>& shaders)
     for (auto& shader : shaders)
     {
         // TODO: Do this in one native call. 
-        Device::vkCreateShadersEXT(m_VKDeviceLogical, 1u, &shader->GetInfo()->shader, nullptr, &shader->GetData()->shader);
+        vkCreateShadersEXT(m_VKDeviceLogical, 1u, &shader->GetInfo()->shader, nullptr, &shader->GetData()->shader);
     }
 }
 
@@ -347,7 +316,7 @@ void Device::ReleaseShaders(const std::vector<Shader*>& shaders)
     for (auto& shader : shaders)
     {
         free(shader->GetData()->spirvByteCode);
-        Device::vkDestroyShaderEXT(m_VKDeviceLogical, shader->GetData()->shader, nullptr);
+        vkDestroyShaderEXT(m_VKDeviceLogical, shader->GetData()->shader, nullptr);
     }
 }
 
@@ -433,25 +402,28 @@ void Device::SetDefaultRenderState(VkCommandBuffer commandBuffer)
 
     static VkBool32     s_DefaultBlendEnable = VK_FALSE;
     static VkViewport   s_DefaultViewport    = { 0, 0, 64, 64, 0.0, 1.0 };
-    static VkRect2D     s_DefaultScissor     = { 0, 0, 64, 64 };
+    static VkRect2D     s_DefaultScissor     = { {0, 0}, {64, 64} };
     static VkSampleMask s_DefaultSampleMask  = 0xFFFFFFFF;
 
-    Device::vkCmdSetColorBlendEnableEXT       (commandBuffer, 0u, 1u, &s_DefaultBlendEnable);
-    Device::vkCmdSetColorWriteMaskEXT         (commandBuffer, 0u, 1u, &s_DefaultWriteMask);
-    Device::vkCmdSetColorBlendEquationEXT     (commandBuffer, 0u, 1u, &s_DefaultColorBlend);
-    Device::vkCmdSetViewportWithCountEXT      (commandBuffer, 1u, &s_DefaultViewport);
-    Device::vkCmdSetScissorWithCountEXT       (commandBuffer, 1u, &s_DefaultScissor);
-    Device::vkCmdSetPrimitiveRestartEnableEXT (commandBuffer, VK_FALSE);
-    Device::vkCmdSetRasterizerDiscardEnableEXT(commandBuffer, VK_FALSE);
-    Device::vkCmdSetAlphaToCoverageEnableEXT  (commandBuffer, VK_FALSE);
-    Device::vkCmdSetStencilTestEnableEXT      (commandBuffer, VK_FALSE);
-    Device::vkCmdSetDepthTestEnableEXT        (commandBuffer, VK_FALSE);
-    Device::vkCmdSetDepthBiasEnableEXT        (commandBuffer, VK_FALSE);
-    Device::vkCmdSetDepthWriteEnableEXT       (commandBuffer, VK_FALSE);
-    Device::vkCmdSetRasterizationSamplesEXT   (commandBuffer, VK_SAMPLE_COUNT_1_BIT);
-    Device::vkCmdSetSampleMaskEXT             (commandBuffer, VK_SAMPLE_COUNT_1_BIT, &s_DefaultSampleMask);
-    Device::vkCmdSetFrontFaceEXT              (commandBuffer, VK_FRONT_FACE_CLOCKWISE);
-    Device::vkCmdSetPolygonModeEXT            (commandBuffer, VK_POLYGON_MODE_FILL);
-    Device::vkCmdSetCullModeEXT               (commandBuffer, VK_CULL_MODE_BACK_BIT);
-    Device::vkCmdSetPrimitiveTopologyEXT      (commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    // See: https://registry.khronos.org/vulkan/specs/1.3-extensions/html/vkspec.html#shaders-objects-state
+    vkCmdSetViewportWithCount         (commandBuffer, 1u, &s_DefaultViewport);
+    vkCmdSetScissorWithCount          (commandBuffer, 1u, &s_DefaultScissor);
+    vkCmdSetRasterizerDiscardEnable   (commandBuffer, VK_FALSE);
+
+    vkCmdSetPrimitiveTopology      (commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    vkCmdSetPrimitiveRestartEnable (commandBuffer, VK_FALSE);
+
+    vkCmdSetRasterizationSamplesEXT  (commandBuffer, VK_SAMPLE_COUNT_1_BIT);
+    vkCmdSetSampleMaskEXT            (commandBuffer, VK_SAMPLE_COUNT_1_BIT, &s_DefaultSampleMask);
+    vkCmdSetAlphaToCoverageEnableEXT (commandBuffer, VK_FALSE);
+    vkCmdSetPolygonModeEXT           (commandBuffer, VK_POLYGON_MODE_FILL);
+    vkCmdSetCullMode                 (commandBuffer, VK_CULL_MODE_BACK_BIT);
+    vkCmdSetFrontFace                (commandBuffer, VK_FRONT_FACE_CLOCKWISE);
+    vkCmdSetDepthTestEnable          (commandBuffer, VK_FALSE);
+    vkCmdSetDepthWriteEnable         (commandBuffer, VK_FALSE);
+    vkCmdSetDepthBiasEnable          (commandBuffer, VK_FALSE);
+    vkCmdSetStencilTestEnable        (commandBuffer, VK_FALSE);
+    vkCmdSetColorBlendEnableEXT      (commandBuffer, 0u, 1u, &s_DefaultBlendEnable);
+    vkCmdSetColorWriteMaskEXT        (commandBuffer, 0u, 1u, &s_DefaultWriteMask);
+    vkCmdSetColorBlendEquationEXT    (commandBuffer, 0u, 1u, &s_DefaultColorBlend);
 }

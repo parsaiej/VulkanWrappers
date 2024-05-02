@@ -1,7 +1,6 @@
+#include "vulkan/vulkan_core.h"
 #include <VulkanWrappers/Shader.h>
 #include <VulkanWrappers/Device.h>
-
-#include <iostream>
 
 using namespace VulkanWrappers;
 

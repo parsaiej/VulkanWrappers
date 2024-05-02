@@ -66,30 +66,16 @@ namespace VulkanWrappers
         // Extension Functions
         #define VK_FUNC_MEMBER(func) static PFN_##func func
 
-        VK_FUNC_MEMBER(vkCmdBeginRenderingKHR);
-        VK_FUNC_MEMBER(vkCmdEndRenderingKHR);
-        VK_FUNC_MEMBER(vkCmdPipelineBarrier2KHR);
         VK_FUNC_MEMBER(vkCreateShadersEXT);
         VK_FUNC_MEMBER(vkDestroyShaderEXT);
         VK_FUNC_MEMBER(vkCmdBindShadersEXT);
-        VK_FUNC_MEMBER(vkCmdSetPrimitiveTopologyEXT);
-        VK_FUNC_MEMBER(vkCmdSetColorWriteMaskEXT);
-        VK_FUNC_MEMBER(vkCmdSetPrimitiveRestartEnableEXT);
-        VK_FUNC_MEMBER(vkCmdSetColorBlendEnableEXT);
-        VK_FUNC_MEMBER(vkCmdSetRasterizerDiscardEnableEXT);
-        VK_FUNC_MEMBER(vkCmdSetAlphaToCoverageEnableEXT);
-        VK_FUNC_MEMBER(vkCmdSetPolygonModeEXT);
-        VK_FUNC_MEMBER(vkCmdSetStencilTestEnableEXT);
-        VK_FUNC_MEMBER(vkCmdSetDepthTestEnableEXT);
-        VK_FUNC_MEMBER(vkCmdSetColorBlendEquationEXT);
-        VK_FUNC_MEMBER(vkCmdSetCullModeEXT);
-        VK_FUNC_MEMBER(vkCmdSetDepthBiasEnableEXT);
-        VK_FUNC_MEMBER(vkCmdSetDepthWriteEnableEXT);
-        VK_FUNC_MEMBER(vkCmdSetFrontFaceEXT);
-        VK_FUNC_MEMBER(vkCmdSetViewportWithCountEXT);
-        VK_FUNC_MEMBER(vkCmdSetScissorWithCountEXT);
         VK_FUNC_MEMBER(vkCmdSetRasterizationSamplesEXT);
         VK_FUNC_MEMBER(vkCmdSetSampleMaskEXT);
+        VK_FUNC_MEMBER(vkCmdSetAlphaToCoverageEnableEXT);
+        VK_FUNC_MEMBER(vkCmdSetPolygonModeEXT);
+        VK_FUNC_MEMBER(vkCmdSetColorBlendEnableEXT);
+        VK_FUNC_MEMBER(vkCmdSetColorWriteMaskEXT);
+        VK_FUNC_MEMBER(vkCmdSetColorBlendEquationEXT);
 
     private:
         VkInstance       m_VKInstance;

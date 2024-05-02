@@ -31,25 +31,16 @@ endif ()
 
 # Library
 # -----------------------
-if (APPLE)
-    add_library(${WRAPPERS_NAME} SHARED
-        "VmaUsage.cpp" 
-        "Device.cpp" 
-        "Window.cpp"
-        "Image.cpp"
-        "Buffer.cpp"
-        "Shader.cpp"
-    )
-else()
-    add_library(${WRAPPERS_NAME} STATIC
-        "VmaUsage.cpp" 
-        "Device.cpp" 
-        "Window.cpp"
-        "Image.cpp"
-        "Buffer.cpp"
-        "Shader.cpp"
-    )
-endif()
+
+add_library(${WRAPPERS_NAME} SHARED
+    "VmaUsage.cpp" 
+    "Device.cpp" 
+    "Window.cpp"
+    "Image.cpp"
+    "Buffer.cpp"
+    "Shader.cpp"
+)
+    
 # Include
 # -----------------------
 
