@@ -1,38 +1,19 @@
-# Library Name
-# -----------------------
-
-set(WRAPPERS_NAME VulkanWrappers)
-
 # Misc. Packages.
 # -----------------------
 
-find_package(glfw3 REQUIRED)
+find_package(glfw3  REQUIRED)
 find_package(Vulkan REQUIRED)
+find_package(volk   REQUIRED)
 
 # Add VMA
 # -----------------------
 
 add_subdirectory(VulkanMemoryAllocator)
 
-# OS-specific needs.
-# -----------------------
-
-if (APPLE)
-    find_library(COCOA_LIBRARY Cocoa REQUIRED)
-    find_library(QUARTZ_CORE QuartzCore REQUIRED)
-
-    add_library(MetalUtility SHARED "MetalUtility/MetalUtility.m")
-
-    # Link
-    target_link_libraries(MetalUtility glfw)
-    target_link_libraries(MetalUtility ${QUARTZ_CORE})
-    target_link_libraries(MetalUtility ${COCOA_LIBRARY})
-endif ()
-
 # Library
 # -----------------------
 
-add_library(${WRAPPERS_NAME} SHARED
+add_library(VulkanWrappers SHARED
     "VmaUsage.cpp" 
     "Device.cpp" 
     "Window.cpp"
@@ -44,19 +25,14 @@ add_library(${WRAPPERS_NAME} SHARED
 # Include
 # -----------------------
 
-target_include_directories(${WRAPPERS_NAME} PRIVATE ${GLFW_INCLUDE_DIRS})
-target_include_directories(${WRAPPERS_NAME} PRIVATE ${Vulkan_INCLUDE_DIRS})
-if(APPLE) 
-    target_include_directories(${WRAPPERS_NAME} PRIVATE "MetalUtility/")
-endif()
-target_include_directories(${WRAPPERS_NAME} PRIVATE "Include/")
+target_include_directories(VulkanWrappers PRIVATE ${GLFW_INCLUDE_DIRS})
+target_include_directories(VulkanWrappers PRIVATE ${Vulkan_INCLUDE_DIRS})
+target_include_directories(VulkanWrappers PRIVATE "Include/")
 
 # Link
 # -----------------------
 
-target_link_libraries(${WRAPPERS_NAME} PRIVATE ${Vulkan_LIBRARIES})
-target_link_libraries(${WRAPPERS_NAME} PRIVATE glfw)
-if(APPLE)
-    target_link_libraries(${WRAPPERS_NAME} PRIVATE MetalUtility)
-endif()
-target_link_libraries(${WRAPPERS_NAME} PRIVATE GPUOpen::VulkanMemoryAllocator)
+target_link_libraries(VulkanWrappers PRIVATE ${Vulkan_LIBRARIES})
+target_link_libraries(VulkanWrappers PRIVATE glfw)
+target_link_libraries(VulkanWrappers PRIVATE GPUOpen::VulkanMemoryAllocator)
+target_link_libraries(VulkanWrappers PRIVATE volk::volk)
