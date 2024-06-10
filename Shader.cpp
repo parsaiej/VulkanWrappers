@@ -1,4 +1,3 @@
-#include "vulkan/vulkan_core.h"
 #include <VulkanWrappers/Shader.h>
 #include <VulkanWrappers/Device.h>
 
@@ -66,5 +65,5 @@ void Shader::Bind(VkCommandBuffer commandBuffer, Shader& shader)
 {
     auto shaderObject = shader.GetData()->shader;
     auto shaderStage  = shader.GetInfo()->stages;
-    Device::vkCmdBindShadersEXT(commandBuffer, 1u, &shaderStage, &shaderObject);
+    vkCmdBindShadersEXT(commandBuffer, 1u, &shaderStage, &shaderObject);
 }

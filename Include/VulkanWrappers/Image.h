@@ -1,9 +1,9 @@
 #ifndef IMAGE
 #define IMAGE
 
-#include <vulkan/vulkan.h>
 #include <GL/glew.h>
 
+#include <VulkanWrappers/VolkUsage.h>
 #include <VulkanWrappers/VmaUsage.h>
 
 namespace VulkanWrappers

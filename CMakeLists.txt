@@ -13,8 +13,9 @@ add_subdirectory(VulkanMemoryAllocator)
 # Library
 # -----------------------
 
-add_library(VulkanWrappers SHARED
+add_library(VulkanWrappers STATIC
     "VmaUsage.cpp" 
+    "VolkUsage.cpp"
     "Device.cpp" 
     "Window.cpp"
     "Image.cpp"
@@ -32,7 +33,6 @@ target_include_directories(VulkanWrappers PRIVATE "Include/")
 # Link
 # -----------------------
 
-target_link_libraries(VulkanWrappers PRIVATE ${Vulkan_LIBRARIES})
 target_link_libraries(VulkanWrappers PRIVATE glfw)
 target_link_libraries(VulkanWrappers PRIVATE GPUOpen::VulkanMemoryAllocator)
-target_link_libraries(VulkanWrappers PRIVATE volk::volk)
+target_link_libraries(VulkanWrappers PRIVATE volk::volk_headers)

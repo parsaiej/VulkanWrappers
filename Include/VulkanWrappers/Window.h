@@ -6,7 +6,7 @@
     #define VK_USE_PLATFORM_MACOS_MVK
 #endif
 
-#include <vulkan/vulkan.h>
+#include <VulkanWrappers/VolkUsage.h>
 
 #include <array>
 #include <vector>

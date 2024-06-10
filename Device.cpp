@@ -5,28 +5,20 @@
 #include <VulkanWrappers/Image.h>
 
 #include <GLFW/glfw3.h>
+#include <cstdint>
+#include <stdexcept>
 #include <vector>
 #include <assert.h>
+#include <vulkan/vulkan_core.h>
 
 using namespace VulkanWrappers;
-
-#define DECLARE_VK_FUNC(func) PFN_##func Device::func = nullptr;
-#define GET_VK_FUNC(func) Device::func = reinterpret_cast<PFN_##func> (vkGetDeviceProcAddr(m_VKDeviceLogical, #func)); assert(func != nullptr);
-
-DECLARE_VK_FUNC(vkCreateShadersEXT);
-DECLARE_VK_FUNC(vkDestroyShaderEXT);
-DECLARE_VK_FUNC(vkCmdBindShadersEXT);
-DECLARE_VK_FUNC(vkCmdSetRasterizationSamplesEXT);
-DECLARE_VK_FUNC(vkCmdSetSampleMaskEXT);
-DECLARE_VK_FUNC(vkCmdSetAlphaToCoverageEnableEXT);
-DECLARE_VK_FUNC(vkCmdSetPolygonModeEXT);
-DECLARE_VK_FUNC(vkCmdSetColorBlendEnableEXT);
-DECLARE_VK_FUNC(vkCmdSetColorWriteMaskEXT);
-DECLARE_VK_FUNC(vkCmdSetColorBlendEquationEXT);
 
 Device::Device(Window* window)
     : m_Window(window)
 {
+    if (volkInitialize() != VK_SUCCESS)
+        throw std::runtime_error("A vulkan loader was not found.");
+
     // Create Vulkan Instance
 
     VkApplicationInfo appInfo  = {};
@@ -36,6 +28,7 @@ Device::Device(Window* window)
     appInfo.pEngineName        = "No Engine";
     appInfo.engineVersion      = VK_MAKE_VERSION(1, 0, 0);
     appInfo.apiVersion         = VK_API_VERSION_1_3;
+
     std::vector<const char*> enabledInstanceExtensions;
 
     if (window != nullptr)
@@ -50,24 +43,12 @@ Device::Device(Window* window)
             enabledInstanceExtensions.push_back(glfwExtensions[i]);
     }
 
-#if __APPLE__
-    // MoltenVK compatibility. 
-    enabledInstanceExtensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-
-    if (window != nullptr)
-        enabledInstanceExtensions.push_back(VK_MVK_MACOS_SURFACE_EXTENSION_NAME);
-#endif
-
     std::vector<const char*> enabledLayers;
 
 #if ENABLE_VALIDATION_LAYERS
     enabledLayers.push_back("VK_LAYER_KHRONOS_validation");
 #endif
 
-#if __APPLE__
-    // Required in order to create a logical device with shader object extension that doesn't natively support it.
-    enabledLayers.push_back("VK_LAYER_KHRONOS_shader_object");
-#else
     VkInstanceCreateInfo instanceCreateInfo    = {};
     instanceCreateInfo.sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     instanceCreateInfo.pApplicationInfo        = &appInfo;
@@ -75,15 +56,17 @@ Device::Device(Window* window)
     instanceCreateInfo.ppEnabledExtensionNames = enabledInstanceExtensions.data();
     instanceCreateInfo.enabledLayerCount       = (uint32_t)enabledLayers.size();
     instanceCreateInfo.ppEnabledLayerNames     = enabledLayers.data();
-#endif
+
     #if __APPLE__
         // For MoltenVK. 
         instanceCreateInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
     #endif
 
-
     if (vkCreateInstance(&instanceCreateInfo, nullptr, &m_VKInstance) != VK_SUCCESS) 
         throw std::runtime_error("failed to create instance!");
+
+    // Forward the instance to volk to auto-load all extensions.
+    volkLoadInstance(m_VKInstance);
 
     // Create Window Surface (if needed)
     // ----------------------
@@ -170,65 +153,19 @@ Device::Device(Window* window)
     // Specify the physical features to use. 
     VkPhysicalDeviceFeatures deviceFeatures = {};
 
-    std::vector<const char*> enabledExtensions;
-    {
-        if (window != nullptr)
-            enabledExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-
-        enabledExtensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
-        enabledExtensions.push_back(VK_EXT_SHADER_OBJECT_EXTENSION_NAME);
-        enabledExtensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
-        enabledExtensions.push_back(VK_KHR_MAINTENANCE_2_EXTENSION_NAME);
-        enabledExtensions.push_back(VK_EXT_EXTENDED_DYNAMIC_STATE_2_EXTENSION_NAME);
-    }
-
 #if __APPLE__
     enabledExtensions.push_back("VK_KHR_portability_subset");
 #endif
-
-    // Setup for VK_EXT_extended_dynamic_state2
-
-    VkPhysicalDeviceExtendedDynamicState2FeaturesEXT dynamicState2 = {};
-    dynamicState2.sType                 = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_2_FEATURES_EXT;
-    dynamicState2.extendedDynamicState2 = VK_TRUE;
-
-    // Setup for VK_KHR_synchronization2
-
-    VkPhysicalDeviceSynchronization2FeaturesKHR synchronization2Feature = {};
-    synchronization2Feature.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES_KHR;
-    synchronization2Feature.pNext            = &dynamicState2;
-    synchronization2Feature.synchronization2 = VK_TRUE;
-
-    // Setup for VK_EXT_shader_object
-
-    VkPhysicalDeviceShaderObjectFeaturesEXT shaderObjectFeature = {};
-    shaderObjectFeature.sType        = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_OBJECT_FEATURES_EXT;
-    shaderObjectFeature.pNext        = &synchronization2Feature;
-    shaderObjectFeature.shaderObject = VK_TRUE;
-
-    // Setup for VK_KHR_dynamic_rendering
-
-    VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature ={};
-    dynamicRenderingFeature.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR;
-    dynamicRenderingFeature.pNext            = &shaderObjectFeature;
-    dynamicRenderingFeature.dynamicRendering = VK_TRUE;
-
-    // Setup to enable timeline semaphores.
-
-    VkPhysicalDeviceVulkan12Features features12 =  {};
-    features12.sType             = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-    features12.pNext             = &dynamicRenderingFeature;
-    features12.timelineSemaphore = VK_TRUE;
     
     VkDeviceCreateInfo deviceCreateInfo = {};
     deviceCreateInfo.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    deviceCreateInfo.pNext                   = &features12;
+    deviceCreateInfo.pNext                   = nullptr;
     deviceCreateInfo.pQueueCreateInfos       = queueCreateInfos.data();
     deviceCreateInfo.queueCreateInfoCount    = (uint32_t)queueCreateInfos.size();
     deviceCreateInfo.pEnabledFeatures        = &deviceFeatures;
-    deviceCreateInfo.ppEnabledExtensionNames = enabledExtensions.data();
-    deviceCreateInfo.enabledExtensionCount   = (uint32_t)enabledExtensions.size();
-    deviceCreateInfo.enabledLayerCount       = 0;
+    deviceCreateInfo.ppEnabledExtensionNames = nullptr;
+    deviceCreateInfo.enabledExtensionCount   = 0u;
+    deviceCreateInfo.enabledLayerCount       = 0u;
 
     if (vkCreateDevice(m_VKDevicePhysical, &deviceCreateInfo, nullptr, &m_VKDeviceLogical) != VK_SUCCESS) 
         throw std::runtime_error("failed to create logical device.");
@@ -245,8 +182,8 @@ Device::Device(Window* window)
     // ----------------------
 
     VmaVulkanFunctions vmaVulkanFunctions = {};
-    vmaVulkanFunctions.vkGetInstanceProcAddr = &vkGetInstanceProcAddr;
-    vmaVulkanFunctions.vkGetDeviceProcAddr   = &vkGetDeviceProcAddr;
+    vmaVulkanFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
+    vmaVulkanFunctions.vkGetDeviceProcAddr   = vkGetDeviceProcAddr;
 
     VmaAllocatorCreateInfo allocatorCreateInfo = {};
     allocatorCreateInfo.flags            = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
@@ -273,20 +210,6 @@ Device::Device(Window* window)
 
     if (m_Window != nullptr)
         m_Window->CreateVulkanSwapchain(this);
-
-    // Extension function pointers
-    // ---------------------
-    
-    GET_VK_FUNC(vkCmdBindShadersEXT);
-    GET_VK_FUNC(vkCreateShadersEXT);
-    GET_VK_FUNC(vkDestroyShaderEXT);
-    GET_VK_FUNC(vkCmdSetRasterizationSamplesEXT);
-    GET_VK_FUNC(vkCmdSetSampleMaskEXT);
-    GET_VK_FUNC(vkCmdSetAlphaToCoverageEnableEXT);
-    GET_VK_FUNC(vkCmdSetPolygonModeEXT);
-    GET_VK_FUNC(vkCmdSetColorBlendEnableEXT);  
-    GET_VK_FUNC(vkCmdSetColorWriteMaskEXT);
-    GET_VK_FUNC(vkCmdSetColorBlendEquationEXT);
 }
 
 Device::~Device()
@@ -339,7 +262,6 @@ void Device::CreateBuffers(const std::vector<Buffer*>& buffers)
 
         vkCreateBufferView(m_VKDeviceLogical, &buffer->GetInfo()->view, nullptr, &buffer->GetData()->view);
     }
-
 }
 
 void Device::ReleaseBuffers(const std::vector<Buffer*>& buffers)

@@ -1,10 +1,7 @@
 #ifndef SHADER
 #define SHADER
 
-#include <vulkan/vulkan.h>
-
-#include <stdio.h>
-#include <stdlib.h>
+#include <volk.h>
 
 namespace VulkanWrappers
 {

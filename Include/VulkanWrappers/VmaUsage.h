@@ -23,6 +23,8 @@
 #ifndef VMA_USAGE_H_
 #define VMA_USAGE_H_
 
+#define VK_NO_PROTOTYPES
+
 #ifdef _WIN32
 
 #if !defined(NOMINMAX)

@@ -1,15 +1,12 @@
 #ifndef DEVICE
 #define DEVICE
 
-#if __APPLE__
-    // For special molten-vk extension.
-    #define VK_USE_PLATFORM_MACOS_MVK
-#endif
-
-#include <vulkan/vulkan.h>
+#include <VulkanWrappers/VolkUsage.h>
 #include <VulkanWrappers/VmaUsage.h>
+
 #include <vector>
-#include "stdexcept"
+#include <stdexcept>
+
 // Extension Functions
 // -----------------------
 
@@ -62,21 +59,7 @@ namespace VulkanWrappers
         inline Window* GetWindow() { return m_Window; }
         
         ~Device();
-
-        // Extension Functions
-        #define VK_FUNC_MEMBER(func) static PFN_##func func
-
-        VK_FUNC_MEMBER(vkCreateShadersEXT);
-        VK_FUNC_MEMBER(vkDestroyShaderEXT);
-        VK_FUNC_MEMBER(vkCmdBindShadersEXT);
-        VK_FUNC_MEMBER(vkCmdSetRasterizationSamplesEXT);
-        VK_FUNC_MEMBER(vkCmdSetSampleMaskEXT);
-        VK_FUNC_MEMBER(vkCmdSetAlphaToCoverageEnableEXT);
-        VK_FUNC_MEMBER(vkCmdSetPolygonModeEXT);
-        VK_FUNC_MEMBER(vkCmdSetColorBlendEnableEXT);
-        VK_FUNC_MEMBER(vkCmdSetColorWriteMaskEXT);
-        VK_FUNC_MEMBER(vkCmdSetColorBlendEquationEXT);
-
+        
     private:
         VkInstance       m_VKInstance;
         VkPhysicalDevice m_VKDevicePhysical;
